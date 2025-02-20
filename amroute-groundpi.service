@@ -1,0 +1,13 @@
+[Unit]
+Description=AmRoute GroundPi
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/AMMavroute
+ExecStart=/usr/bin/python3 amroute-groundpi.py
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,82 @@
+# Address of flight controller
+# Use "ls /dev/serial/by-id" to list serial devices
+fc_port: /dev/serial/by-id/usb-CubePilot_CubeOrange+_340041000B51323039383833-if00
+fc_baud: 115200
+
+# Address of RFD900
+# Use "ls /dev/serial/by-id" to list serial devices
+rfd_port: /dev/serial/by-id/usb-FTDI_FT231X_USB_UART_DC008I8N-if00-port0
+rfd_baud: 57600
+
+# For Wifi, where to send the messages
+# This is the groundpi's Wifi address
+# mavproxy.py --master=udpout:192.168.1.124:14500
+wifi_remote: 192.168.1.124:14500
+
+# For Skylink, where to send the messages
+# This is the groundpi's Zerotier address
+# mavproxy.py --master=udpout:127.0.0.1:14501
+skylink_remote: 192.168.1.112:14502
+
+# Link timeout in sec before activating next link
+hb_timeout: 6
+
+# Skylink IP address, username and password. 0 to disable
+skylink_ip: 0
+
+# GoExec IP address. 0 to disable
+goexec_ip: 192.168.111.52
+
+# MAVLink stream to AMMcamera
+streamer_ipport: 127.0.0.1:14551
+
+# Messages to send, with rate in Hz. 0 is disabled, -1 is allow all 
+skylink_messages:
+ AHRS: 0
+ AHRS2: 0
+ AOA_SSA: 0
+ ATTITUDE: 0.5
+ AUTOPILOT_VERSION: 0
+ BATTERY_STATUS: 0.2
+ BATTERY2: 0.2
+ COMMAND_ACK: -1
+ DISTANCE_SENSOR: 0
+ EKF_STATUS_REPORT: 0.2
+ GLOBAL_POSITION_INT: 0.5
+ GPS_GLOBAL_ORIGIN: 0
+ GPS_RAW_INT: 0
+ GPS2_RAW: 0
+ HEARTBEAT: 0.5
+ HOME_POSITION: 0
+ HWSTATUS: 0
+ LOCAL_POSITION_NED: 0
+ MEMINFO: 0
+ MISSION_CURRENT: 0
+ NAMED_VALUE_FLOAT: 0
+ PARAM_VALUE: 0
+ POWER_STATUS: 0
+ RANGEFINDER: 0
+ RAW_IMU: 0
+ RC_CHANNELS: 0
+ SCALED_IMU2: 0
+ SCALED_IMU3: 0
+ SCALED_PRESSURE: 0
+ SCALED_PRESSURE2: 0
+ SERVO_OUTPUT_RAW: 0
+ STATUSTEXT: 0
+ SYS_STATUS: -1
+ SYSTEM_TIME: 0
+ TERRAIN_REPORT: 0
+ TIMESYNC: 0
+ VFR_HUD: 0.5
+ VIBRATION: 0
+ WIND: 0
+ 
+
+ 
+
+ 
+
+ 
+ 
+ 

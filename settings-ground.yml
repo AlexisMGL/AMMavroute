@@ -1,0 +1,24 @@
+# Address of RFD900
+# Use "ls /dev/serial/by-id" to list serial devices
+rfd_port: /dev/serial/by-id/usb-FTDI_FT231X_USB_UART_D30F7LE2-if00-port0
+rfd_baud: 57600
+
+# For Wifi, the GroundPi's port to connect to
+# Needs to match the wifi port in AirPi settings
+wifi_port: 14700
+
+# For Skylink, the GroundPi's Zerotier IP and port to connect to
+skylink_remote: 192.168.1.124:14600
+
+# For Rockblock, the IP and Port that rockblock2mav is sending to
+rockblock_remote: 172.29.171.197:14700
+
+# Link timeout in sec before activating next link
+hb_timeout: 2
+
+# Rockblock timeout in sec before activating next link
+rockblock_timeout: 30
+
+# UDP Server for GCS - will output on the Ethernet IP on this port
+# mavproxy.py --master=udpout:192.168.1.112:15001 --console
+gcs_output_port: 15001
