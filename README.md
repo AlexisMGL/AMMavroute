@@ -9,9 +9,6 @@ AMMavroute intelligently selects the best route for MAVLink telemetry between tw
 
 ## Graphical Setup
 
-```
-[Insert Graphical Representation Here]
-```
 
 ## Installation
 
@@ -135,4 +132,4 @@ Using the Rockblock requires the “rockblock2mav” software to be installed an
 - **V1.2 (14/03/2023)** - Added Skylink signal strength reporting
 - **V1.1 (03/03/2023)** - Show local and remote RFD RSSI messages, improved telemetry mode string
 - **V1.0** - Initial release
-```
+
