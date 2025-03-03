@@ -17,6 +17,14 @@ import struct
 
 exit_event = threading.Event()
 
+vehicle = sys.argv[1] if len(sys.argv) > 1 else None
+
+if not vehicle:
+    print("Erreur : Aucun véhicule spécifié.")
+    sys.exit(1)
+
+print(f"Véhicule sélectionné : {VEHICLE}")
+
 
 def signal_handler(signum, frame):
     exit_event.set()
@@ -129,7 +137,7 @@ if __name__ == '__main__':
             except (KeyError, ValueError):
                 print("Error: Can't find Ethernet")
     # Connect the GCS and don't wait for heartbeat
-    conn_gcs = mavutil.mavlink_connection("udpin:{0}:{1}".format(ip_eth, settings['gcs_output_port']),
+    conn_gcs = mavutil.mavlink_connection("udpin:{0}:{1}".format(ip_eth, settings['gcs_output_port_l'][vehicle]),
                                           autoreconnect=True,
                                           source_system=1, force_connected=False,
                                           source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
@@ -150,7 +158,7 @@ if __name__ == '__main__':
                                            source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
     # Connect the Skylink (UDP Client), don't wait for heartbeat
-    conn_skylink = mavutil.mavlink_connection("udpin:{0}".format(settings['skylink_remote']), autoreconnect=True,
+    conn_skylink = mavutil.mavlink_connection("udpin:{0}".format(settings['skylink_remote_l'][vehicle]), autoreconnect=True,
                                               source_system=1, force_connected=False,
                                               source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
@@ -183,7 +191,7 @@ if __name__ == '__main__':
 
         # pass messages along. Note if we get duplicate messages on the RFD and Wifi coming in,
         # we only onsend 1 of those, to prevent duplicate messages being sent
-        if m_rfd:
+        if m_rfd and m_rfd.get_srcSystem() == id_l[vehicle]:
             if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
                 # Don't forward radio status packet generated autmatically from the RFD
                 if ap_system == 0:
@@ -205,7 +213,7 @@ if __name__ == '__main__':
                 except IndexError:
                     conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
                     rfd_sig = "RFD Signal N/A"
-        if m_wifi:
+        if m_wifi and m_wifi.get_srcSystem() == id_l[vehicle]:
             # if m_wifi.get_type() == "HEARTBEAT":
             #    print("Got HB")
             if ap_system == 0:
