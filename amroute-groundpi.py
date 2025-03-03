@@ -103,6 +103,47 @@ if __name__ == '__main__':
         print("Error: Bad settings-ground.yml")
         sys.exit(1)
 
+    # Initialiser les listes
+    id_l = []
+    skylink_remote_l = []
+    gcs_output_port_l = []
+    conn_gcs_l = []
+    m_wifi_l = []
+    m_gcs_l = []
+    m_skylink_l = []
+    m_rfd_l = []
+    m_rockblock_l = []
+    ap_system_l = []
+    connection_state_l = []
+    time_since_last_wifi_l = []
+    time_since_last_rfd_l = []
+    time_since_last_satcom_l = []
+    heartbeat_time_l = []
+    time_since_last_report_l = []
+    rx_packets_skylink_l = []
+    rfd_sig_l = []
+
+    vehicle_count = 3  # Adapter selon le nombre de véhicules
+    for i in range(1, vehicle_count + 1):
+        id_l.append(settings.get(f"id_{i}"))
+        skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
+        gcs_output_port_l.append(settings.get(f"gcs_output_port_{i}"))
+        conn_gcs_l.append(None)
+        m_wifi_l.append(None)
+        m_gcs_l.append(None)
+        m_skylink_l.append(None)
+        m_rfd_l.append(None)
+        m_rockblock_l.append(None)
+        ap_system_l.append(0)
+        connection_state_l.append(CommsState.WAITING_FOR_RFD_WIFI)
+        time_since_last_wifi_l.append(0)
+        time_since_last_rfd_l.append(0)
+        time_since_last_satcom_l.append(0)
+        heartbeat_time_l.append(time.time())
+        time_since_last_report_l.append(time.time())
+        rx_packets_skylink_l.append(0)
+        rfd_sig_l.append("")
+
     # Get the IP address of the Wifi
     try:
         ip_wifi = ni.ifaddresses('wlo1')[ni.AF_INET][0]['addr']
@@ -129,10 +170,11 @@ if __name__ == '__main__':
             except (KeyError, ValueError):
                 print("Error: Can't find Ethernet")
     # Connect the GCS and don't wait for heartbeat
-    conn_gcs = mavutil.mavlink_connection("udpin:{0}:{1}".format(ip_eth, settings['gcs_output_port']),
-                                          autoreconnect=True,
-                                          source_system=1, force_connected=False,
-                                          source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+    for i in range(0, vehicle_count):
+        conn_gcs_l[i] = mavutil.mavlink_connection("udpin:{0}:{1}".format(ip_eth, gcs_output_port_l[i]),
+                                              autoreconnect=True,
+                                              source_system=1, force_connected=False,
+                                              source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
     # Connect the RFD, don't wait for heartbeat
     try:
@@ -150,9 +192,10 @@ if __name__ == '__main__':
                                            source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
     # Connect the Skylink (UDP Client), don't wait for heartbeat
-    conn_skylink = mavutil.mavlink_connection("udpin:{0}".format(settings['skylink_remote']), autoreconnect=True,
-                                              source_system=1, force_connected=False,
-                                              source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+    for i in range(0, vehicle_count):
+        conn_skylink = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
+                                                  source_system=1, force_connected=False,
+                                                  source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
     # Connect the Rockblock (UDP Client), don't wait for heartbeat
     conn_rockblock = mavutil.mavlink_connection("udpin:{0}".format(settings['rockblock_remote']), autoreconnect=True,
@@ -161,8 +204,9 @@ if __name__ == '__main__':
     while True:
         # Process messages from all links
         try:
-            if conn_gcs:
-                m_gcs = conn_gcs.recv_msg()
+            for i in range(0, vehicle_count):
+                if conn_gcs_l[i]:
+                    m_gcs_l[i] = conn_gcs_l[i].recv_msg()
             if conn_rfd:
                 try:
                     m_rfd = conn_rfd.recv_msg()
@@ -171,255 +215,271 @@ if __name__ == '__main__':
                     # print("Lost RFD")
             if conn_wifi:
                 m_wifi = conn_wifi.recv_msg()
-            if conn_skylink:
-                m_skylink = conn_skylink.recv_msg()
+            for i in range(0, vehicle_count):
+                if conn_skylink_l[i]:
+                    m_skylink_l[i] = conn_skylink_l[i].recv_msg()
             if conn_rockblock:
                 m_rockblock = conn_rockblock.recv_msg()
         except (BlockingIOError, KeyboardInterrupt):
             break
 
-        if m_gcs is None and m_rfd is None and m_wifi is None and m_skylink and m_rockblock is None:
+        if (m_rfd is None) and \
+           (m_wifi is None) and \
+           all(m_gcs_l[i] is None for i in range(vehicle_count)) and \
+           all(m_skylink_l[i] is None for i in range(vehicle_count)) and \
+           (m_rockblock is None):
             time.sleep(0.01)
+
 
         # pass messages along. Note if we get duplicate messages on the RFD and Wifi coming in,
         # we only onsend 1 of those, to prevent duplicate messages being sent
         if m_rfd:
+            local_sys = m_rfd.get_srcSystem()
+            m_rfd_l[local_sys] = m_rfd
             if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
                 # Don't forward radio status packet generated autmatically from the RFD
-                if ap_system == 0:
+                if ap_system_l[local_sys] == 0:
                     print("Locked onto AP at {0}:{1}".format(m_rfd.get_srcSystem(), m_rfd.get_srcComponent()))
-                    ap_system = m_rfd.get_srcSystem()
-                    ap_component = m_rfd.get_srcComponent()
-                    set_sys_comp(conn_gcs, ap_system, ap_component)
-                if connection_state == CommsState.ON_RFD:
+                    ap_system_l[local_sys] = m_rfd.get_srcSystem()
+                    ap_component_l[local_sys] = m_rfd.get_srcComponent()
+                    set_sys_comp(conn_gcs_l[local_sys], ap_system_l[local_sys], ap_component_l[local_sys])
+                if connection_state_l[local_sys] == CommsState.ON_RFD:
                     conn_gcs.write(m_rfd.get_msgbuf())
                 time_since_last_rfd = time.time()
             elif m_rfd.get_type() == "RADIO_STATUS":
                 # print(m_rfd)
                 try:
-                    rfd_sig = "RFD Signal: L:{0}/{1}, R:{2}/{3}".format(m_rfd.rssi, m_rfd.noise,
+                    rfd_sig_l[local_sys] = "RFD Signal: L:{0}/{1}, R:{2}/{3}".format(m_rfd.rssi, m_rfd.noise,
                                                                         m_rfd.remrssi, m_rfd.remnoise)
                     # if rfd_sig == "RFD Signal N/A":
                     #    conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Regained RFD").encode())
                     #    rfd_sig = rfd_sig_new
                 except IndexError:
-                    conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
-                    rfd_sig = "RFD Signal N/A"
+                    conn_gcs_l[local_sys].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
+                    rfd_sig[local_sys] = "RFD Signal N/A"
+
         if m_wifi:
+            local_sys = m_wifi.get_srcSystem()
+            m_wifi_l[local_sys] = m_wifi
             # if m_wifi.get_type() == "HEARTBEAT":
             #    print("Got HB")
-            if ap_system == 0:
+            if ap_system_l[local_sys] == 0:
                 print("Locked onto AP at {0}:{1}".format(m_wifi.get_srcSystem(), m_wifi.get_srcComponent()))
-                ap_system = m_wifi.get_srcSystem()
-                ap_component = m_wifi.get_srcComponent()
-                set_sys_comp(conn_gcs, ap_system, ap_component)
-            if connection_state == CommsState.ON_WIFI:
-                conn_gcs.write(m_wifi.get_msgbuf())
-            time_since_last_wifi = time.time()
-        if (m_skylink and (time.time() - time_since_last_rfd) > settings['hb_timeout'] and
-           (time.time() - time_since_last_wifi) > settings['hb_timeout']):
-            # Switch to SATCOM, if not already AND there's been no packets from RFD or Wifi for a bit
-            if connection_state is not CommsState.ON_SATCOM:
-                connection_state = CommsState.ON_SATCOM
-                print("Going to Satellite")
-                conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO,
-                                             str("Changing to Satellite (2)").encode())
-            if ap_system == 0:
-                print("Locked onto AP at {0}:{1}".format(m_skylink.get_srcSystem(), m_skylink.get_srcComponent()))
-                ap_system = m_skylink.get_srcSystem()
-                ap_component = m_skylink.get_srcComponent()
-                set_sys_comp(conn_gcs, ap_system, ap_component)
-            conn_gcs.write(m_skylink.get_msgbuf())
-            time_since_last_satcom = time.time()
+                ap_system_l[local_sys] = m_wifi.get_srcSystem()
+                ap_component_l[local_sys] = m_wifi.get_srcComponent()
+                set_sys_comp(conn_gcs_l[local_sys], ap_system_l[local_sys], ap_component_l[local_sys])
+            if connection_state_l[local_sys] == CommsState.ON_WIFI:
+                conn_gcs_l[local_sys].write(m_wifi.get_msgbuf())
+            time_since_last_wifi_l[local_sys] = time.time()
+
+        for i in range(0, vehicle_count):
+            if (m_skylink_l[i] and (time.time() - time_since_last_rfd_l[i]) > settings['hb_timeout'] and
+               (time.time() - time_since_last_wifi_l[i]) > settings['hb_timeout']):
+                # Switch to SATCOM, if not already AND there's been no packets from RFD or Wifi for a bit
+                if connection_state_l[i] is not CommsState.ON_SATCOM:
+                    connection_state_l[i] = CommsState.ON_SATCOM
+                    print("Going to Satellite")
+                    conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO,
+                                                 str("Changing to Satellite (2)").encode())
+                if ap_system_l[i] == 0:
+                    print("Locked onto AP at {0}:{1}".format(m_skylink.get_srcSystem(), m_skylink.get_srcComponent()))
+                    ap_system_l[i] = m_skylink.get_srcSystem()
+                    ap_component_l[i] = m_skylink.get_srcComponent()
+                    set_sys_comp(conn_gcs_l[i], ap_system_l[i], ap_component_l[i])
+                conn_gcs_l[i].write(m_skylink_l[i].get_msgbuf())
+                time_since_last_satcom_l[i] = time.time()
         if m_rockblock:
             # Check if it not just a late packet from the aircraft, as the connection may
             # have been re-established whilst the rockblock packet was in transit
-            if connection_state is not CommsState.ON_ROCKBLOCK:
-                if (time.time() - time_since_last_rfd) > settings['rockblock_timeout'] and \
-                   (time.time() - time_since_last_wifi) > settings['rockblock_timeout'] and \
-                   (time.time() - time_since_last_satcom) > settings['rockblock_timeout']:
-                    connection_state = CommsState.ON_ROCKBLOCK
-                    print("Going to Rockblock")
-                    conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Going to Rockblock").encode())
-                    conn_gcs.write(m_rockblock.get_msgbuf())
-            else:
-                conn_gcs.write(m_rockblock.get_msgbuf())
+            for i in range(0, vehicle_count):
+                if connection_state_l[i] is not CommsState.ON_ROCKBLOCK:
+                    if (time.time() - time_since_last_rfd_l[i]) > settings['rockblock_timeout'] and \
+                       (time.time() - time_since_last_wifi_l[i]) > settings['rockblock_timeout'] and \
+                       (time.time() - time_since_last_satcom_l[i]) > settings['rockblock_timeout']:
+                        connection_state_l[i] = CommsState.ON_ROCKBLOCK
+                        print("Going to Rockblock")
+                        conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Going to Rockblock").encode())
+                        conn_gcs_l[i].write(m_rockblock.get_msgbuf())
+                else:
+                    conn_gcs_l[i].write(m_rockblock.get_msgbuf())
 
         # Check for inital connection on Wifi or RFD
-        if time_since_last_wifi > 0 and connection_state == CommsState.WAITING_FOR_RFD_WIFI:
-            connection_state = CommsState.ON_WIFI
-            print("Initial connection on WIFI")
-        elif time_since_last_rfd > 0 and connection_state == CommsState.WAITING_FOR_RFD_WIFI:
-            connection_state = CommsState.ON_RFD
-            print("Initial connection on RFD")
+        for i in range(0, vehicle_count):
+            if time_since_last_wifi_l[i] > 0 and connection_state_l[i] == CommsState.WAITING_FOR_RFD_WIFI:
+                connection_state_l[i] = CommsState.ON_WIFI
+                print("Initial connection on WIFI")
+            elif time_since_last_rfd_l[i] > 0 and connection_state_l[i] == CommsState.WAITING_FOR_RFD_WIFI:
+                connection_state = CommsState.ON_RFD
+                print("Initial connection on RFD")
 
-        # Switch RFD -> WIFI and back again. Bias to Wifi connection
-        if ((time.time() - time_since_last_wifi) < settings['hb_timeout'] and
-           connection_state == CommsState.ON_RFD):
-            connection_state = CommsState.ON_WIFI
-            print("Going to WIFI")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Wifi").encode())
-        elif ((time.time() - time_since_last_wifi) > settings['hb_timeout'] and
-              (time.time() - time_since_last_rfd) < settings['hb_timeout'] and
-              connection_state == CommsState.ON_WIFI):
-            connection_state = CommsState.ON_RFD
-            print("Going to RFD")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to RFD").encode())
-        # Switch to SATCOM
-        elif ((time.time() - time_since_last_rfd) > settings['hb_timeout'] and
-              connection_state == CommsState.ON_RFD):
-            connection_state = CommsState.ON_SATCOM
-            print("Going to Satellite")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
-        elif ((time.time() - time_since_last_wifi) > settings['hb_timeout'] and
-              connection_state == CommsState.ON_WIFI):
-            connection_state = CommsState.ON_SATCOM
-            print("Going to Satellite")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
-        # Switch back to RFD/Wifi from SATCOM/Rockblock
-        elif (connection_state in [CommsState.ON_SATCOM, CommsState.ON_ROCKBLOCK] and
-              (time.time() - time_since_last_rfd) < settings['hb_timeout']):
-            connection_state = CommsState.ON_RFD
-            print("Going to RFD")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to RFD").encode())
-        elif (connection_state in [CommsState.ON_SATCOM, CommsState.ON_ROCKBLOCK] and
-              (time.time() - time_since_last_wifi) < settings['hb_timeout']):
-            connection_state = CommsState.ON_WIFI
-            print("Going to Wifi")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Wifi").encode())
-        # Switch back to SATCOM from Rockblock
-        elif (connection_state == CommsState.ON_ROCKBLOCK and
-              (time.time() - time_since_last_satcom) < settings['rockblock_timeout']):
-            connection_state = CommsState.ON_SATCOM
-            print("Going to Satellite")
-            conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
-        # Rockblock switching done on the aircraft side, so no need to put it here
-
-        if m_gcs:
-            if conn_rfd:
-                try:
-                    conn_rfd.write(m_gcs.get_msgbuf())
-                except (struct.error, NotImplementedError):
-                    pass
-                except serial.serialutil.SerialException:
-                    conn_rfd = None
-                    # print("Lost RFD")
-            if conn_wifi:
-                try:
-                    conn_wifi.write(m_gcs.get_msgbuf())
-                except (struct.error, NotImplementedError):
-                    pass
-            try:
-                if connection_state == CommsState.ON_SATCOM:
-                    conn_skylink.write(m_gcs.get_msgbuf())
-            except (struct.error, NotImplementedError):
-                pass
-            try:
-                if connection_state == CommsState.ON_ROCKBLOCK:
-                    conn_rockblock.write(m_gcs.get_msgbuf())
-            except (struct.error, NotImplementedError):
-                pass
-            # print("Got {0} from FC".format(m_gcs.get_type()))
-
-            # Try reconnecting any failed serial devices
-            if conn_rfd is None:
-                try:
-                    conn_rfd = mavutil.mavlink_connection(str(settings['rfd_port']), baud=settings['rfd_baud'],
-                                                          autoreconnect=True,
-                                                          source_system=1, force_connected=False,
-                                                          source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
-                    print("Reconnected RFD")
-                except serial.serialutil.SerialException:
-                    conn_rfd = None
-                    # print("Lost RFD")
-
-        # send hb to airpi (on all non-Rockblock network links) once per hb_timeout
-        # This ensures the links are tested for connectivity even if there's no GCS
-        if time.time() - heartbeat_time > settings['hb_timeout']-1:
-            heartbeat_time = time.time()
-            if connection_state in [CommsState.WAITING_FOR_RFD_WIFI, CommsState.ON_RFD, CommsState.ON_WIFI]:
+            # Switch RFD -> WIFI and back again. Bias to Wifi connection
+            if ((time.time() - time_since_last_wifi_l[i]) < settings['hb_timeout'] and
+               connection_state_l[i] == CommsState.ON_RFD):
+                connection_state_l[i] = CommsState.ON_WIFI
+                print("Going to WIFI")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Wifi").encode())
+            elif ((time.time() - time_since_last_wifi_l[i]) > settings['hb_timeout'] and
+                  (time.time() - time_since_last_rfd_l[i]) < settings['hb_timeout'] and
+                  connection_state_l[i] == CommsState.ON_WIFI):
+                connection_state_l[i] = CommsState.ON_RFD
+                print("Going to RFD")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to RFD").encode())
+            # Switch to SATCOM
+            elif ((time.time() - time_since_last_rfd_l[i]) > settings['hb_timeout'] and
+                  connection_state_l[i] == CommsState.ON_RFD):
+                connection_state_l[i] = CommsState.ON_SATCOM
+                print("Going to Satellite")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
+            elif ((time.time() - time_since_last_wifi_l[i]) > settings['hb_timeout'] and
+                  connection_state_l[i] == CommsState.ON_WIFI):
+                connection_state_l[i] = CommsState.ON_SATCOM
+                print("Going to Satellite")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
+            # Switch back to RFD/Wifi from SATCOM/Rockblock
+            elif (connection_state_l[i] in [CommsState.ON_SATCOM, CommsState.ON_ROCKBLOCK] and
+                  (time.time() - time_since_last_rfd_l[i]) < settings['hb_timeout']):
+                connection_state_l[i] = CommsState.ON_RFD
+                print("Going to RFD")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to RFD").encode())
+            elif (connection_state_l[i] in [CommsState.ON_SATCOM, CommsState.ON_ROCKBLOCK] and
+                  (time.time() - time_since_last_wifi_l[i]) < settings['hb_timeout']):
+                connection_state_l[i] = CommsState.ON_WIFI
+                print("Going to Wifi")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Wifi").encode())
+            # Switch back to SATCOM from Rockblock
+            elif (connection_state_l[i] == CommsState.ON_ROCKBLOCK and
+                  (time.time() - time_since_last_satcom_l[i]) < settings['rockblock_timeout']):
+                connection_state_l[i] = CommsState.ON_SATCOM
+                print("Going to Satellite")
+                conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Changing to Satellite").encode())
+            # Rockblock switching done on the aircraft side, so no need to put it here
+        
+            if m_gcs_l[i]:
                 if conn_rfd:
-                    conn_rfd.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
-                                                mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
-                                                0,
-                                                0,
-                                                0)
+                    try:
+                        conn_rfd.write(m_gcs_l[i].get_msgbuf())
+                    except (struct.error, NotImplementedError):
+                        pass
+                    except serial.serialutil.SerialException:
+                        conn_rfd = None
+                        # print("Lost RFD")
                 if conn_wifi:
-                    conn_wifi.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
-                                                 mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
-                                                 0,
-                                                 0,
-                                                 0)
-            elif connection_state == CommsState.ON_SATCOM:
-                if conn_skylink:
-                    conn_skylink.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                    try:
+                        conn_wifi.write(m_gcs_l[i].get_msgbuf())
+                    except (struct.error, NotImplementedError):
+                        pass
+                try:
+                    if connection_state_l[i] == CommsState.ON_SATCOM:
+                        conn_skylink_l[i].write(m_gcs_l[i].get_msgbuf())
+                except (struct.error, NotImplementedError):
+                    pass
+                try:
+                    if connection_state_l[i] == CommsState.ON_ROCKBLOCK:
+                        conn_rockblock.write(m_gcs.get_msgbuf())
+                except (struct.error, NotImplementedError):
+                    pass
+                # print("Got {0} from FC".format(m_gcs.get_type()))
+
+                # Try reconnecting any failed serial devices
+                if conn_rfd is None:
+                    try:
+                        conn_rfd = mavutil.mavlink_connection(str(settings['rfd_port']), baud=settings['rfd_baud'],
+                                                              autoreconnect=True,
+                                                              source_system=1, force_connected=False,
+                                                              source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+                        print("Reconnected RFD")
+                    except serial.serialutil.SerialException:
+                        conn_rfd = None
+                        # print("Lost RFD")
+
+            # send hb to airpi (on all non-Rockblock network links) once per hb_timeout
+            # This ensures the links are tested for connectivity even if there's no GCS
+            if time.time() - heartbeat_time > settings['hb_timeout']-1:
+                heartbeat_time = time.time()
+                if connection_state_l[i] in [CommsState.WAITING_FOR_RFD_WIFI, CommsState.ON_RFD, CommsState.ON_WIFI]:
+                    if conn_rfd:
+                        conn_rfd.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
                                                     mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
                                                     0,
                                                     0,
                                                     0)
-            if conn_rockblock:
-                conn_rockblock.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
-                                                  mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
-                                                  0,
-                                                  0,
-                                                  0)
-        # report data rate and system status once per 10 sec
-        if time.time() - time_since_last_report > 10:
-            if conn_gcs:
-                try:
-                    conn_gcs.mav.statustext_send(
-                        mavutil.mavlink.MAV_SEVERITY_INFO, rfd_sig.encode())
-                    time.sleep(0.001)
-                    conn_gcs.mav.statustext_send(
-                        mavutil.mavlink.MAV_SEVERITY_INFO, str(connection_state).encode())
-                except (struct.error, NotImplementedError):
-                    pass
-                # and packet stats
-                if conn_wifi:
-                    delta_wifi = conn_wifi.mav_count - rx_packets_wifi
-                else:
-                    delta_wifi = 0
-                if conn_rfd:
-                    delta_rfd = conn_rfd.mav_count - rx_packets_rfd
-                else:
-                    delta_rfd = 0
-                delta_skylink = conn_skylink.mav_count - rx_packets_skylink
-                delta_rockblock = conn_rockblock.mav_count - rx_packets_rockblock
-                stats_str = "GndRx last 10 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
-                                                                                            delta_rfd,
-                                                                                            delta_skylink,
-                                                                                            delta_rockblock)
-                if conn_wifi:
-                    rx_packets_wifi = conn_wifi.mav_count
-                else:
-                    rx_packets_wifi = 0
-                if conn_rfd:
-                    rx_packets_rfd = conn_rfd.mav_count
-                else:
-                    rx_packets_rfd = 0
-                rx_packets_skylink = conn_skylink.mav_count
-                rx_packets_rockblock = conn_rockblock.mav_count
-                try:
-                    conn_gcs.mav.statustext_send(
-                        mavutil.mavlink.MAV_SEVERITY_INFO, stats_str.encode())
-                except (struct.error, NotImplementedError):
-                    pass
-            # reset RFD measurements
-            rfd_sig = "RFD Signal N/A"
-            time_since_last_report = time.time()
+                    if conn_wifi:
+                        conn_wifi.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                                                     mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
+                                                     0,
+                                                     0,
+                                                     0)
+                elif connection_state_l[i] == CommsState.ON_SATCOM:
+                    if conn_skylink_l[i]:
+                        conn_skylink_l[i].mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                                                        mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
+                                                        0,
+                                                        0,
+                                                        0)
+                if conn_rockblock:
+                    conn_rockblock.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                                                      mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
+                                                      0,
+                                                      0,
+                                                      0)
+            # report data rate and system status once per 10 sec
+            if time.time() - time_since_last_report_l[i] > 10:
+                if conn_gcs_l[i]:
+                    try:
+                        conn_gcs_l[i].mav.statustext_send(
+                            mavutil.mavlink.MAV_SEVERITY_INFO, rfd_sig.encode())
+                        time.sleep(0.001)
+                        conn_gcs_l[i].mav.statustext_send(
+                            mavutil.mavlink.MAV_SEVERITY_INFO, str(connection_state).encode())
+                    except (struct.error, NotImplementedError):
+                        pass
+                    # and packet stats
+                    if conn_wifi:
+                        delta_wifi = conn_wifi.mav_count - rx_packets_wifi
+                    else:
+                        delta_wifi = 0
+                    if conn_rfd:
+                        delta_rfd = conn_rfd.mav_count - rx_packets_rfd
+                    else:
+                        delta_rfd = 0
+                    delta_skylink = conn_skylink_l[i].mav_count - rx_packets_skylink_l[i]
+                    delta_rockblock = conn_rockblock.mav_count - rx_packets_rockblock
+                    stats_str = "GndRx last 10 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
+                                                                                                delta_rfd,
+                                                                                                delta_skylink,
+                                                                                                delta_rockblock)
+                    if conn_wifi:
+                        rx_packets_wifi = conn_wifi.mav_count
+                    else:
+                        rx_packets_wifi = 0
+                    if conn_rfd:
+                        rx_packets_rfd = conn_rfd.mav_count
+                    else:
+                        rx_packets_rfd = 0
+                    rx_packets_skylink_l[i] = conn_skylink_l[i].mav_count
+                    rx_packets_rockblock = conn_rockblock.mav_count
+                    try:
+                        conn_gcs_l[i].mav.statustext_send(
+                            mavutil.mavlink.MAV_SEVERITY_INFO, stats_str.encode())
+                    except (struct.error, NotImplementedError):
+                        pass
+                # reset RFD measurements
+                rfd_sig_l[i] = "RFD Signal N/A"
+                time_since_last_report_l[i] = time.time()
 
         if exit_event.is_set():
             break
 
     # Cleanup
     print("Exiting")
-    if conn_gcs:
-        conn_gcs.close()
+    for i in range(0, vehicle_count):
+        if conn_gcs_l[i]:
+            conn_gcs_l[i].close()
     if conn_rfd:
         conn_rfd.close()
     if conn_wifi:
         conn_wifi.close()
-    if conn_skylink:
-        conn_skylink.close()
+    if conn_skylink_l[i]:
+        conn_skylink_l[i].close()
     if conn_rockblock:
         conn_rockblock.close()

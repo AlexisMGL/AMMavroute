@@ -22,3 +22,18 @@ rockblock_timeout: 30
 # UDP Server for GCS - will output on the Ethernet IP on this port
 # mavproxy.py --master=udpout:192.168.1.112:15001 --console
 gcs_output_port: 15001
+
+#vehicle 1
+id_1: 17
+skylink_remote_1: 172.29.171.197:14700
+gcs_output_port_1: 15001
+
+#vehicle 2
+id_2: 18
+skylink_remote_2: 172.29.171.197:14700
+gcs_output_port_2: 15002
+
+#vehicle 3
+id_3: 19
+skylink_remote_3: 172.29.171.197:14700
+gcs_output_port_3: 15003
