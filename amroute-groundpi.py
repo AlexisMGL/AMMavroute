@@ -111,6 +111,7 @@ if __name__ == '__main__':
     skylink_remote_l = []
     gcs_output_port_l = []
     conn_gcs_l = []
+    conn_skylink_l = []
     m_wifi_l = []
     m_gcs_l = []
     m_skylink_l = []
@@ -125,6 +126,7 @@ if __name__ == '__main__':
     time_since_last_report_l = []
     rx_packets_skylink_l = []
     rfd_sig_l = []
+    ap_component_l = []
 
     vehicle_count = 3  # Adapter selon le nombre de véhicules
     for i in range(1, vehicle_count + 1):
@@ -132,12 +134,14 @@ if __name__ == '__main__':
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
         gcs_output_port_l.append(settings.get(f"gcs_output_port_{i}"))
         conn_gcs_l.append(None)
+        conn_skylink_l.append(None)
         m_wifi_l.append(None)
         m_gcs_l.append(None)
         m_skylink_l.append(None)
         m_rfd_l.append(None)
         m_rockblock_l.append(None)
         ap_system_l.append(0)
+        ap_component_l.append(0)
         connection_state_l.append(CommsState.WAITING_FOR_RFD_WIFI)
         time_since_last_wifi_l.append(0)
         time_since_last_rfd_l.append(0)
@@ -196,7 +200,7 @@ if __name__ == '__main__':
 
     # Connect the Skylink (UDP Client), don't wait for heartbeat
     for i in range(0, vehicle_count):
-        conn_skylink = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
+        conn_skylink_l[i] = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
                                                   source_system=1, force_connected=False,
                                                   source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
 
@@ -240,8 +244,8 @@ if __name__ == '__main__':
             local_sys = m_rfd.get_srcSystem()
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
-                index = i
-                break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
+                    index = i
+                    break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
             m_rfd_l[index] = m_rfd
             if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
                 # Don't forward radio status packet generated autmatically from the RFD
@@ -269,8 +273,8 @@ if __name__ == '__main__':
             local_sys = m_wifi.get_srcSystem()
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
-                index = i
-                break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
+                    index = i
+                    break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
             m_wifi_l[index] = m_wifi
             # if m_wifi.get_type() == "HEARTBEAT":
             #    print("Got HB")
