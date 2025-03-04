@@ -125,10 +125,13 @@ if __name__ == '__main__':
     heartbeat_time_l = []
     time_since_last_report_l = []
     rx_packets_skylink_l = []
+    rx_packets_wifi_l = []
+    rx_packets_rfd_l = []
+    rx_packets_rockblock_l = []
     rfd_sig_l = []
     ap_component_l = []
 
-    vehicle_count = 3  # Adapter selon le nombre de véhicules
+    vehicle_count = 3  # Adapter selon le nombre de vï¿½hicules
     for i in range(1, vehicle_count + 1):
         id_l.append(settings.get(f"id_{i}"))
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
@@ -149,6 +152,9 @@ if __name__ == '__main__':
         heartbeat_time_l.append(time.time())
         time_since_last_report_l.append(time.time())
         rx_packets_skylink_l.append(0)
+        rx_packets_wifi_l.append(0)
+        rx_packets_rfd_l.append(0)
+        rx_packets_rockblock_l.append(0)
         rfd_sig_l.append("")
 
     # Get the IP address of the Wifi
@@ -245,7 +251,7 @@ if __name__ == '__main__':
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
                     index = i
-                    break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
+                    break  # Les ID sont uniques, on peut sortir dï¿½s qu'on a trouvï¿½   
             m_rfd_l[index] = m_rfd
             if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
                 # Don't forward radio status packet generated autmatically from the RFD
@@ -255,7 +261,7 @@ if __name__ == '__main__':
                     ap_component_l[index] = m_rfd.get_srcComponent()
                     set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
                 if connection_state_l[index] == CommsState.ON_RFD:
-                    conn_gcs.write(m_rfd.get_msgbuf())
+                    conn_gcs_l[index].write(m_rfd.get_msgbuf())
                 time_since_last_rfd = time.time()
             elif m_rfd.get_type() == "RADIO_STATUS":
                 # print(m_rfd)
@@ -274,7 +280,7 @@ if __name__ == '__main__':
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
                     index = i
-                    break  # Les ID sont uniques, on peut sortir dès qu'on a trouvé   
+                    break  # ID are unique
             m_wifi_l[index] = m_wifi
             # if m_wifi.get_type() == "HEARTBEAT":
             #    print("Got HB")
@@ -390,7 +396,7 @@ if __name__ == '__main__':
                     pass
                 try:
                     if connection_state_l[i] == CommsState.ON_ROCKBLOCK:
-                        conn_rockblock.write(m_gcs.get_msgbuf())
+                        conn_rockblock.write(m_gcs_l[i].get_msgbuf())
                 except (struct.error, NotImplementedError):
                     pass
                 # print("Got {0} from FC".format(m_gcs.get_type()))
@@ -445,34 +451,34 @@ if __name__ == '__main__':
                             mavutil.mavlink.MAV_SEVERITY_INFO, rfd_sig.encode())
                         time.sleep(0.001)
                         conn_gcs_l[i].mav.statustext_send(
-                            mavutil.mavlink.MAV_SEVERITY_INFO, str(connection_state).encode())
+                            mavutil.mavlink.MAV_SEVERITY_INFO, str(connection_state_l[i]).encode())
                     except (struct.error, NotImplementedError):
                         pass
                     # and packet stats
                     if conn_wifi:
-                        delta_wifi = conn_wifi.mav_count - rx_packets_wifi
+                        delta_wifi = conn_wifi.mav_count - rx_packets_wifi_l[i]
                     else:
                         delta_wifi = 0
                     if conn_rfd:
-                        delta_rfd = conn_rfd.mav_count - rx_packets_rfd
+                        delta_rfd = conn_rfd.mav_count - rx_packets_rfd_l[i]
                     else:
                         delta_rfd = 0
                     delta_skylink = conn_skylink_l[i].mav_count - rx_packets_skylink_l[i]
-                    delta_rockblock = conn_rockblock.mav_count - rx_packets_rockblock
+                    delta_rockblock = conn_rockblock.mav_count - rx_packets_rockblock_l[i]
                     stats_str = "GndRx last 10 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
                                                                                                 delta_rfd,
                                                                                                 delta_skylink,
                                                                                                 delta_rockblock)
                     if conn_wifi:
-                        rx_packets_wifi = conn_wifi.mav_count
+                        rx_packets_wifi_l[i] = conn_wifi.mav_count
                     else:
-                        rx_packets_wifi = 0
+                        rx_packets_wifi_l[i] = 0
                     if conn_rfd:
-                        rx_packets_rfd = conn_rfd.mav_count
+                        rx_packets_rfd_l[i] = conn_rfd.mav_count
                     else:
-                        rx_packets_rfd = 0
+                        rx_packets_rfd_l[i] = 0
                     rx_packets_skylink_l[i] = conn_skylink_l[i].mav_count
-                    rx_packets_rockblock = conn_rockblock.mav_count
+                    rx_packets_rockblock_l[i] = conn_rockblock.mav_count
                     try:
                         conn_gcs_l[i].mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO, stats_str.encode())
@@ -494,7 +500,8 @@ if __name__ == '__main__':
         conn_rfd.close()
     if conn_wifi:
         conn_wifi.close()
-    if conn_skylink_l[i]:
-        conn_skylink_l[i].close()
+    for i in range(0, vehicle_count):
+        if conn_skylink_l[i]:
+            conn_skylink_l[i].close()
     if conn_rockblock:
         conn_rockblock.close()
