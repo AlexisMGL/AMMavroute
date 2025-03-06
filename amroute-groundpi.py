@@ -262,7 +262,7 @@ if __name__ == '__main__':
                     set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
                 if connection_state_l[index] == CommsState.ON_RFD:
                     conn_gcs_l[index].write(m_rfd.get_msgbuf())
-                time_since_last_rfd = time.time()
+                time_since_last_rfd_l[index] = time.time()
             elif m_rfd.get_type() == "RADIO_STATUS":
                 # print(m_rfd)
                 try:
