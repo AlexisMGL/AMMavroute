@@ -303,9 +303,9 @@ if __name__ == '__main__':
                     conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO,
                                                  str("Changing to Satellite (2)").encode())
                 if ap_system_l[i] == 0:
-                    print("Locked onto AP at {0}:{1}".format(m_skylink.get_srcSystem(), m_skylink.get_srcComponent()))
-                    ap_system_l[i] = m_skylink.get_srcSystem()
-                    ap_component_l[i] = m_skylink.get_srcComponent()
+                    print("Locked onto AP at {0}:{1}".format(m_skylink_l[i].get_srcSystem(), m_skylink_l[i].get_srcComponent()))
+                    ap_system_l[i] = m_skylink_l[i].get_srcSystem()
+                    ap_component_l[i] = m_skylink_l[i].get_srcComponent()
                     set_sys_comp(conn_gcs_l[i], ap_system_l[i], ap_component_l[i])
                 conn_gcs_l[i].write(m_skylink_l[i].get_msgbuf())
                 time_since_last_satcom_l[i] = time.time()
