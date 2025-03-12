@@ -109,9 +109,11 @@ if __name__ == '__main__':
     # Initialiser les listes
     id_l = []
     skylink_remote_l = []
+    rockblock_remote_l = []
     gcs_output_port_l = []
     conn_gcs_l = []
     conn_skylink_l = []
+    conn_rockblock_l = []
     m_wifi_l = []
     m_gcs_l = []
     m_skylink_l = []
@@ -135,9 +137,11 @@ if __name__ == '__main__':
     for i in range(1, vehicle_count + 1):
         id_l.append(settings.get(f"id_{i}"))
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
+        rockblock_remote_l.append(settings.get(f"skylink_remote_{i}"))
         gcs_output_port_l.append(settings.get(f"gcs_output_port_{i}"))
         conn_gcs_l.append(None)
         conn_skylink_l.append(None)
+        conn_rockblock_l.append(None)
         m_wifi_l.append(None)
         m_gcs_l.append(None)
         m_skylink_l.append(None)
@@ -209,11 +213,10 @@ if __name__ == '__main__':
         conn_skylink_l[i] = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
                                                   source_system=1, force_connected=False,
                                                   source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
-
-    # Connect the Rockblock (UDP Client), don't wait for heartbeat
-    conn_rockblock = mavutil.mavlink_connection("udpin:{0}".format(settings['rockblock_remote']), autoreconnect=True,
-                                                source_system=1, force_connected=False,
-                                                source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+        # Connect the Rockblock (UDP Client), don't wait for heartbeat
+        conn_rockblock_l[i] = mavutil.mavlink_connection("udpin:{0}".format(rockblock_remote_l[i]), autoreconnect=True,
+                                                    source_system=1, force_connected=False,
+                                                    source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
     while True:
         # Process messages from all links
         try:
@@ -231,8 +234,8 @@ if __name__ == '__main__':
             for i in range(0, vehicle_count):
                 if conn_skylink_l[i]:
                     m_skylink_l[i] = conn_skylink_l[i].recv_msg()
-            if conn_rockblock:
-                m_rockblock = conn_rockblock.recv_msg()
+                if conn_rockblock:
+                    m_rockblock_l[i] = conn_rockblock_l[i].recv_msg()
         except (BlockingIOError, KeyboardInterrupt):
             break
 
@@ -240,7 +243,7 @@ if __name__ == '__main__':
            (m_wifi is None) and \
            all(m_gcs_l[i] is None for i in range(vehicle_count)) and \
            all(m_skylink_l[i] is None for i in range(vehicle_count)) and \
-           (m_rockblock is None):
+           all(m_rockblock_l[i] is None for i in range(vehicle_count)):
             time.sleep(0.01)
 
 
@@ -309,20 +312,19 @@ if __name__ == '__main__':
                     set_sys_comp(conn_gcs_l[i], ap_system_l[i], ap_component_l[i])
                 conn_gcs_l[i].write(m_skylink_l[i].get_msgbuf())
                 time_since_last_satcom_l[i] = time.time()
-        if m_rockblock:
-            # Check if it not just a late packet from the aircraft, as the connection may
-            # have been re-established whilst the rockblock packet was in transit
-            for i in range(0, vehicle_count):
+            if m_rockblock_l[i]:
+                # Check if it not just a late packet from the aircraft, as the connection may
+                # have been re-established whilst the rockblock packet was in transit
                 if connection_state_l[i] is not CommsState.ON_ROCKBLOCK:
                     if (time.time() - time_since_last_rfd_l[i]) > settings['rockblock_timeout'] and \
-                       (time.time() - time_since_last_wifi_l[i]) > settings['rockblock_timeout'] and \
-                       (time.time() - time_since_last_satcom_l[i]) > settings['rockblock_timeout']:
+                    (time.time() - time_since_last_wifi_l[i]) > settings['rockblock_timeout'] and \
+                    (time.time() - time_since_last_satcom_l[i]) > settings['rockblock_timeout']:
                         connection_state_l[i] = CommsState.ON_ROCKBLOCK
                         print("Going to Rockblock")
                         conn_gcs_l[i].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Going to Rockblock").encode())
-                        conn_gcs_l[i].write(m_rockblock.get_msgbuf())
+                        conn_gcs_l[i].write(m_rockblock_l[i].get_msgbuf())
                 else:
-                    conn_gcs_l[i].write(m_rockblock.get_msgbuf())
+                    conn_gcs_l[i].write(m_rockblock_l[i].get_msgbuf())
 
         # Check for inital connection on Wifi or RFD
         for i in range(0, vehicle_count):
@@ -396,7 +398,7 @@ if __name__ == '__main__':
                     pass
                 try:
                     if connection_state_l[i] == CommsState.ON_ROCKBLOCK:
-                        conn_rockblock.write(m_gcs_l[i].get_msgbuf())
+                        conn_rockblock_l[i].write(m_gcs_l[i].get_msgbuf())
                 except (struct.error, NotImplementedError):
                     pass
                 # print("Got {0} from FC".format(m_gcs.get_type()))
@@ -437,8 +439,8 @@ if __name__ == '__main__':
                                                         0,
                                                         0,
                                                         0)
-                if conn_rockblock:
-                    conn_rockblock.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                if conn_rockblock_l[i]:
+                    conn_rockblock_l[i].mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
                                                       mavutil.mavlink.MAV_AUTOPILOT_GENERIC,
                                                       0,
                                                       0,
@@ -464,7 +466,7 @@ if __name__ == '__main__':
                     else:
                         delta_rfd = 0
                     delta_skylink = conn_skylink_l[i].mav_count - rx_packets_skylink_l[i]
-                    delta_rockblock = conn_rockblock.mav_count - rx_packets_rockblock_l[i]
+                    delta_rockblock = conn_rockblock_l[i].mav_count - rx_packets_rockblock_l[i]
                     stats_str = "GndRx last 10 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
                                                                                                 delta_rfd,
                                                                                                 delta_skylink,
@@ -478,7 +480,7 @@ if __name__ == '__main__':
                     else:
                         rx_packets_rfd_l[i] = 0
                     rx_packets_skylink_l[i] = conn_skylink_l[i].mav_count
-                    rx_packets_rockblock_l[i] = conn_rockblock.mav_count
+                    rx_packets_rockblock_l[i] = conn_rockblock_l[i].mav_count
                     try:
                         conn_gcs_l[i].mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO, stats_str.encode())
@@ -503,5 +505,5 @@ if __name__ == '__main__':
     for i in range(0, vehicle_count):
         if conn_skylink_l[i]:
             conn_skylink_l[i].close()
-    if conn_rockblock:
-        conn_rockblock.close()
+        if conn_rockblock_l[i]:
+            conn_rockblock_l[i].close()
