@@ -234,7 +234,7 @@ if __name__ == '__main__':
             for i in range(0, vehicle_count):
                 if conn_skylink_l[i]:
                     m_skylink_l[i] = conn_skylink_l[i].recv_msg()
-                if conn_rockblock:
+                if conn_rockblock_l[i]:
                     m_rockblock_l[i] = conn_rockblock_l[i].recv_msg()
         except (BlockingIOError, KeyboardInterrupt):
             break
