@@ -137,7 +137,7 @@ if __name__ == '__main__':
     for i in range(1, vehicle_count + 1):
         id_l.append(settings.get(f"id_{i}"))
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
-        rockblock_remote_l.append(settings.get(f"skylink_remote_{i}"))
+        rockblock_remote_l.append(settings.get(f"rockblock_remote_{i}"))
         gcs_output_port_l.append(settings.get(f"gcs_output_port_{i}"))
         conn_gcs_l.append(None)
         conn_skylink_l.append(None)
