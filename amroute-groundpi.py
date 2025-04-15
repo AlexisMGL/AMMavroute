@@ -133,7 +133,7 @@ if __name__ == '__main__':
     rfd_sig_l = []
     ap_component_l = []
 
-    vehicle_count = 3  # Adapter selon le nombre de v�hicules
+    vehicle_count = 4  # Adapter selon le nombre de vehicules
     for i in range(1, vehicle_count + 1):
         id_l.append(settings.get(f"id_{i}"))
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
@@ -210,13 +210,18 @@ if __name__ == '__main__':
 
     # Connect the Skylink (UDP Client), don't wait for heartbeat
     for i in range(0, vehicle_count):
+        print(i)
         conn_skylink_l[i] = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
                                                   source_system=1, force_connected=False,
                                                   source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+        print("conn_skl is:")
+        print(conn_skylink_l[i])
         # Connect the Rockblock (UDP Client), don't wait for heartbeat
         conn_rockblock_l[i] = mavutil.mavlink_connection("udpin:{0}".format(rockblock_remote_l[i]), autoreconnect=True,
                                                     source_system=1, force_connected=False,
                                                     source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
+        print("conn_rck is:")
+        print(conn_rockblock_l[i])
     while True:
         # Process messages from all links
         try:
@@ -236,6 +241,8 @@ if __name__ == '__main__':
                     m_skylink_l[i] = conn_skylink_l[i].recv_msg()
                 if conn_rockblock_l[i]:
                     m_rockblock_l[i] = conn_rockblock_l[i].recv_msg()
+                    print("list m is:")
+                    print(m_rockblock_l[i])
         except (BlockingIOError, KeyboardInterrupt):
             break
 

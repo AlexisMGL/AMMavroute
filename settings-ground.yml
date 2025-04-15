@@ -40,3 +40,9 @@ id_3: 19
 skylink_remote_3: 172.29.171.197:14700
 rockblock_remote_3: 172.29.171.197:14700
 gcs_output_port_3: 15003
+
+#vehicle 4
+id_4: 22
+skylink_remote_4: 172.29.171.197:14700
+rockblock_remote_4: 172.29.171.197:14700
+gcs_output_port_4: 15004
