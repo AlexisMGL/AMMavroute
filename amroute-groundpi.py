@@ -133,7 +133,7 @@ if __name__ == '__main__':
     rfd_sig_l = []
     ap_component_l = []
 
-    vehicle_count = 4  # Adapter selon le nombre de vehicules
+    vehicle_count = 3  # Adapter selon le nombre de v�hicules
     for i in range(1, vehicle_count + 1):
         id_l.append(settings.get(f"id_{i}"))
         skylink_remote_l.append(settings.get(f"skylink_remote_{i}"))
@@ -236,8 +236,6 @@ if __name__ == '__main__':
                     m_skylink_l[i] = conn_skylink_l[i].recv_msg()
                 if conn_rockblock_l[i]:
                     m_rockblock_l[i] = conn_rockblock_l[i].recv_msg()
-                    print("list m is:")
-                    print(m_rockblock_l[i])
         except (BlockingIOError, KeyboardInterrupt):
             break
 
@@ -334,7 +332,7 @@ if __name__ == '__main__':
                 connection_state_l[i] = CommsState.ON_WIFI
                 print("Initial connection on WIFI")
             elif time_since_last_rfd_l[i] > 0 and connection_state_l[i] == CommsState.WAITING_FOR_RFD_WIFI:
-                connection_state = CommsState.ON_RFD
+                connection_state_l[i] = CommsState.ON_RFD
                 print("Initial connection on RFD")
 
             # Switch RFD -> WIFI and back again. Bias to Wifi connection
