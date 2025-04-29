@@ -210,18 +210,13 @@ if __name__ == '__main__':
 
     # Connect the Skylink (UDP Client), don't wait for heartbeat
     for i in range(0, vehicle_count):
-        print(i)
         conn_skylink_l[i] = mavutil.mavlink_connection("udpin:{0}".format(skylink_remote_l[i]), autoreconnect=True,
                                                   source_system=1, force_connected=False,
                                                   source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
-        print("conn_skl is:")
-        print(conn_skylink_l[i])
         # Connect the Rockblock (UDP Client), don't wait for heartbeat
         conn_rockblock_l[i] = mavutil.mavlink_connection("udpin:{0}".format(rockblock_remote_l[i]), autoreconnect=True,
                                                     source_system=1, force_connected=False,
                                                     source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL)
-        print("conn_rck is:")
-        print(conn_rockblock_l[i])
     while True:
         # Process messages from all links
         try:
