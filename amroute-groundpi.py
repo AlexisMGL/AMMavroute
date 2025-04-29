@@ -254,47 +254,47 @@ if __name__ == '__main__':
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
                     index = i
-                    break  # Les ID sont uniques, on peut sortir d�s qu'on a trouv�   
-            m_rfd_l[index] = m_rfd
-            if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
-                # Don't forward radio status packet generated autmatically from the RFD
-                if ap_system_l[index] == 0:
-                    print("Locked onto AP at {0}:{1}".format(m_rfd.get_srcSystem(), m_rfd.get_srcComponent()))
-                    ap_system_l[index] = m_rfd.get_srcSystem()
-                    ap_component_l[index] = m_rfd.get_srcComponent()
-                    set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
-                if connection_state_l[index] == CommsState.ON_RFD:
-                    conn_gcs_l[index].write(m_rfd.get_msgbuf())
-                time_since_last_rfd_l[index] = time.time()
-            elif m_rfd.get_type() == "RADIO_STATUS":
-                # print(m_rfd)
-                try:
-                    rfd_sig_l[index] = "RFD Signal: L:{0}/{1}, R:{2}/{3}".format(m_rfd.rssi, m_rfd.noise,
-                                                                        m_rfd.remrssi, m_rfd.remnoise)
-                    # if rfd_sig == "RFD Signal N/A":
-                    #    conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Regained RFD").encode())
-                    #    rfd_sig = rfd_sig_new
-                except IndexError:
-                    conn_gcs_l[index].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
-                    rfd_sig[index] = "RFD Signal N/A"
+                    m_rfd_l[index] = m_rfd
+                    if m_rfd.get_type() not in ["RADIO_STATUS", "BAD_DATA"]:
+                        # Don't forward radio status packet generated autmatically from the RFD
+                        if ap_system_l[index] == 0:
+                            print("Locked onto AP at {0}:{1}".format(m_rfd.get_srcSystem(), m_rfd.get_srcComponent()))
+                            ap_system_l[index] = m_rfd.get_srcSystem()
+                            ap_component_l[index] = m_rfd.get_srcComponent()
+                            set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
+                        if connection_state_l[index] == CommsState.ON_RFD:
+                            conn_gcs_l[index].write(m_rfd.get_msgbuf())
+                        time_since_last_rfd_l[index] = time.time()
+                    elif m_rfd.get_type() == "RADIO_STATUS":
+                        # print(m_rfd)
+                        try:
+                            rfd_sig_l[index] = "RFD Signal: L:{0}/{1}, R:{2}/{3}".format(m_rfd.rssi, m_rfd.noise,
+                                                                                m_rfd.remrssi, m_rfd.remnoise)
+                            # if rfd_sig == "RFD Signal N/A":
+                            #    conn_gcs.mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Regained RFD").encode())
+                            #    rfd_sig = rfd_sig_new
+                        except IndexError:
+                            conn_gcs_l[index].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
+                            rfd_sig[index] = "RFD Signal N/A"
+                    break  # Les ID sont uniques, on peut sortir des qu'on a trouve   
 
         if m_wifi:
             local_sys = m_wifi.get_srcSystem()
             for i, sys_id in enumerate(id_l):
                 if sys_id == local_sys:
                     index = i
+                    m_wifi_l[index] = m_wifi
+                    # if m_wifi.get_type() == "HEARTBEAT":
+                    #    print("Got HB")
+                    if ap_system_l[index] == 0:
+                        print("Locked onto AP at {0}:{1}".format(m_wifi.get_srcSystem(), m_wifi.get_srcComponent()))
+                        ap_system_l[index] = m_wifi.get_srcSystem()
+                        ap_component_l[index] = m_wifi.get_srcComponent()
+                        set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
+                    if connection_state_l[index] == CommsState.ON_WIFI:
+                        conn_gcs_l[index].write(m_wifi.get_msgbuf())
+                    time_since_last_wifi_l[index] = time.time()
                     break  # ID are unique
-            m_wifi_l[index] = m_wifi
-            # if m_wifi.get_type() == "HEARTBEAT":
-            #    print("Got HB")
-            if ap_system_l[index] == 0:
-                print("Locked onto AP at {0}:{1}".format(m_wifi.get_srcSystem(), m_wifi.get_srcComponent()))
-                ap_system_l[index] = m_wifi.get_srcSystem()
-                ap_component_l[index] = m_wifi.get_srcComponent()
-                set_sys_comp(conn_gcs_l[index], ap_system_l[index], ap_component_l[index])
-            if connection_state_l[index] == CommsState.ON_WIFI:
-                conn_gcs_l[index].write(m_wifi.get_msgbuf())
-            time_since_last_wifi_l[index] = time.time()
 
         for i in range(0, vehicle_count):
             if (m_skylink_l[i] and (time.time() - time_since_last_rfd_l[i]) > settings['hb_timeout'] and
