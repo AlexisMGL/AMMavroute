@@ -487,7 +487,7 @@ if __name__ == '__main__':
                     except (struct.error, NotImplementedError):
                         pass
                 # reset RFD measurements
-                rfd_sig = "RFD Signal N/A"
+                rfd_sig_l[i] = "RFD Signal N/A"
                 time_since_last_report_l[i] = time.time()
 
         if exit_event.is_set():
