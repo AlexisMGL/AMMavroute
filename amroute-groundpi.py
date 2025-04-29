@@ -275,7 +275,7 @@ if __name__ == '__main__':
                             #    rfd_sig = rfd_sig_new
                         except IndexError:
                             conn_gcs_l[index].mav.statustext_send(mavutil.mavlink.MAV_SEVERITY_INFO, str("Lost RFD Signal").encode())
-                            rfd_sig[index] = "RFD Signal N/A"
+                            rfd_sig_l[index] = "RFD Signal N/A"
                     break  # Les ID sont uniques, on peut sortir des qu'on a trouve   
 
         if m_wifi:
@@ -445,12 +445,12 @@ if __name__ == '__main__':
                                                       0,
                                                       0,
                                                       0)
-            # report data rate and system status once per 10 sec
-            if time.time() - time_since_last_report_l[i] > 10:
+            # report data rate and system status once per 120 sec
+            if time.time() - time_since_last_report_l[i] > 120:
                 if conn_gcs_l[i]:
                     try:
-                        conn_gcs_l[i].mav.statustext_send(
-                            mavutil.mavlink.MAV_SEVERITY_INFO, rfd_sig.encode())
+                        # conn_gcs_l[i].mav.statustext_send(
+                        #     mavutil.mavlink.MAV_SEVERITY_INFO, rfd_sig.encode())
                         time.sleep(0.001)
                         conn_gcs_l[i].mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO, str(connection_state_l[i]).encode())
@@ -467,7 +467,7 @@ if __name__ == '__main__':
                         delta_rfd = 0
                     delta_skylink = conn_skylink_l[i].mav_count - rx_packets_skylink_l[i]
                     delta_rockblock = conn_rockblock_l[i].mav_count - rx_packets_rockblock_l[i]
-                    stats_str = "GndRx last 10 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
+                    stats_str = "GndRx last 120 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
                                                                                                 delta_rfd,
                                                                                                 delta_skylink,
                                                                                                 delta_rockblock)
@@ -487,7 +487,7 @@ if __name__ == '__main__':
                     except (struct.error, NotImplementedError):
                         pass
                 # reset RFD measurements
-                rfd_sig_l[i] = "RFD Signal N/A"
+                rfd_sig = "RFD Signal N/A"
                 time_since_last_report_l[i] = time.time()
 
         if exit_event.is_set():
