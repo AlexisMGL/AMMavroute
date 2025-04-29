@@ -467,7 +467,7 @@ if __name__ == '__main__':
                         delta_rfd = 0
                     delta_skylink = conn_skylink_l[i].mav_count - rx_packets_skylink_l[i]
                     delta_rockblock = conn_rockblock_l[i].mav_count - rx_packets_rockblock_l[i]
-                    stats_str = "GndRx last 120 sec: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
+                    stats_str = "Gnd 2min: {0} Wifi, {1} RFD, {2} Sat, {3} Rck".format(delta_wifi,
                                                                                                 delta_rfd,
                                                                                                 delta_skylink,
                                                                                                 delta_rockblock)
