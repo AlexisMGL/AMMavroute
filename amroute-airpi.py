@@ -319,8 +319,8 @@ if __name__ == '__main__':
                 pass
             # print("Got {0} from FC".format(m.get_type()))
 
-        # report data rate, skylink status and system status once per 10 sec
-        if time.time() - time_since_last_report > 10:
+        # report data rate, skylink status and system status once per 120 sec
+        if time.time() - time_since_last_report > 120:
             # kbits/sec = ((bytes * 8)/delta_t)/1000
             data_rate_kbits = ((data_rate*8)/(time.time() - time_since_last_report))/1000
 
@@ -343,7 +343,7 @@ if __name__ == '__main__':
                                                                                                     signal,
                                                                                                     bars))
                 print("Mode: {0}".format(connection_state))
-                text_msg = 'Skylink {0:.2f}kbit/sec, Signal {1}dBm, {2}/5 bars'.format(data_rate_kbits,
+                text_msg = 'Skylink {0:.2f}kb/s, Signal {1}dBm, {2}/5 bars'.format(data_rate_kbits,
                                                                                        signal,
                                                                                        bars)
             # Get goexec signal strength
@@ -365,11 +365,11 @@ if __name__ == '__main__':
                     goStatus = -1
 
                 if goStatus == 1:
-                    print("Avg GoExec rate is {0:.2f} kbit/sec, Signal {1}dBm, {2}/5 bars".format(data_rate_kbits,
+                    print("Avg GoExec rate is {0:.2f} kb/s, Signal {1}dBm, {2}/5 bars".format(data_rate_kbits,
                                                                                                   signal,
                                                                                                   bars))
                     print("Mode: {0}".format(connection_state))
-                    text_msg = 'GoExec {0:.2f}kbit/sec, Signal {1}dBm, {2}/5 bars'.format(data_rate_kbits,
+                    text_msg = 'GoExec {0:.2f}kb/s, Signal {1}dBm, {2}/5 bars'.format(data_rate_kbits,
                                                                                           signal,
                                                                                           bars)
                 elif goStatus == 0:
@@ -426,7 +426,7 @@ if __name__ == '__main__':
             else:
                 delta_rfd = 0
             delta_skylink = conn_skylink.mav_count - rx_packets_skylink
-            stats_str = "AirRx last 10 sec: {0} Wifi, {1} RFD, {2} Satellite".format(delta_wifi,
+            stats_str = "Air 2min: {0} Wifi, {1} RFD, {2} Satellite".format(delta_wifi,
                                                                                      delta_rfd,
                                                                                      delta_skylink)
             if conn_wifi:
