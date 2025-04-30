@@ -392,7 +392,7 @@ if __name__ == '__main__':
                     except (struct.error, NotImplementedError):
                         pass
                 try:
-                    if connection_state_l[i] == CommsState.ON_SATCOM:
+                    if connection_state_l[i] == CommsState.ON_SATCOM and m_gcs_l[i].get_type() != "HEARTBEAT":
                         conn_skylink_l[i].write(m_gcs_l[i].get_msgbuf())
                 except (struct.error, NotImplementedError):
                     pass
@@ -417,7 +417,7 @@ if __name__ == '__main__':
 
             # send hb to airpi (on all non-Rockblock network links) once per hb_timeout
             # This ensures the links are tested for connectivity even if there's no GCS
-            if time.time() - heartbeat_time > settings['hb_timeout']-1:
+            if time.time() - heartbeat_time > 30:
                 heartbeat_time = time.time()
                 if connection_state_l[i] in [CommsState.WAITING_FOR_RFD_WIFI, CommsState.ON_RFD, CommsState.ON_WIFI]:
                     if conn_rfd:
