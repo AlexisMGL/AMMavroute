@@ -55,7 +55,7 @@ class CommsState(Enum):
 
 if __name__ == '__main__':
 
-    print("-----AMRoute GroundPi V1.7.0-----\nStarting...")
+    print("-----AMRoute GroundPi V1.9.0-----\nStarting...")
 
     settings = {}
     ip_wifi = None

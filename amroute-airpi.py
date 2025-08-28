@@ -31,7 +31,7 @@ def set_sys_comp(conn, sysid, compid):
 
 
 def makeUID(message):
-    # Make hashable uniqure ID from MAVLink message
+    # Make hashable unique ID from MAVLink message
     return "{0}:{1}:{2}".format(message.get_seq(), message.get_msgId(), message.get_crc())
 
 
@@ -71,7 +71,7 @@ class CommsState(Enum):
 
 if __name__ == '__main__':
 
-    print("-----AMRoute AirPi V1.7.0-----\nStarting...")
+    print("-----AMRoute AirPi V1.9.0-----\nStarting...")
 
     settings = {}
     ip_wifi = None
@@ -79,8 +79,11 @@ if __name__ == '__main__':
     ap_component = 0
     gcs_system = 0
     gcs_component = 0
+    gcs_system_client = 0
+    gcs_component_client = 0
 
     conn_wifi = None
+    conn_wifi_client = None
     conn_fc = None
     conn_rfd = None
     conn_skylink = None
@@ -99,6 +102,7 @@ if __name__ == '__main__':
     message_sent_time = {}
 
     msgbuf_for_last_2_seconds = {}
+    msgbuf_for_last_2_seconds_client = {}
 
     data_rate = 0
     time_since_last_report = time.time()
@@ -154,7 +158,10 @@ if __name__ == '__main__':
                                            autoreconnect=True,
                                            source_system=ap_system, force_connected=False,
                                            source_component=ap_component)
-
+    conn_wifi_client = mavutil.mavlink_connection("tcpin:{0}".format(settings['wifi_remote_client']),
+                                           autoreconnect=True,
+                                           source_system=ap_system, force_connected=False,
+                                           source_component=ap_component)
     # Connect the Skylink (UDP Server), don't wait for heartbeat
     conn_skylink = mavutil.mavlink_connection("udpout:{0}".format(settings['skylink_remote']), autoreconnect=True,
                                               source_system=ap_system, force_connected=False,
@@ -179,18 +186,23 @@ if __name__ == '__main__':
                     # print("Lost RFD")
             if conn_wifi:
                 m_wifi = conn_wifi.recv_msg()
+            if conn_wifi_client:
+                m_wifi_client = conn_wifi_client.recv_msg()
             if conn_skylink:
                 m_skylink = conn_skylink.recv_msg()
         except (BlockingIOError, KeyboardInterrupt):
             break
 
-        if m_fc is None and m_rfd is None and m_wifi is None and m_skylink is None and m_streamer is None:
+        if m_fc is None and m_rfd is None and m_wifi and m_wifi_client is None and m_skylink is None and m_streamer is None:
             time.sleep(0.01)
 
         # remove old de-duped messages
         for buf in list(msgbuf_for_last_2_seconds):
             if time.time() - msgbuf_for_last_2_seconds[buf] > 2:
                 del msgbuf_for_last_2_seconds[buf]
+        for buf_client in list(msgbuf_for_last_2_seconds_client):
+            if time.time() - msgbuf_for_last_2_seconds_client[buf_client] > 2:
+                del msgbuf_for_last_2_seconds_client[buf_client]
 
         # pass messages along, filtering any heartbeats from groundpi
         try:
@@ -214,6 +226,27 @@ if __name__ == '__main__':
         except serial.serialutil.SerialException:
             conn_fc = None
             print("Lost FC")
+
+        try:
+            if m_wifi_client:
+                if gcs_system_client == 0:
+                    print("Client Locked onto WGCS at {0}:{1}".format(m_wifi_client.get_srcSystem(), m_wifi_client.get_srcComponent()))
+                    gcs_system_client = m_wifi_client.get_srcSystem()
+                    gcs_component_client = m_wifi_client.get_srcComponent()
+                    set_sys_comp(conn_fc, gcs_system_client, gcs_component_client) # confirmer
+                if not isFromGroundPi(m_wifi_client) and makeUID(m_wifi_client) not in msgbuf_for_last_2_seconds_client:
+                    msgbuf_for_last_2_seconds_client[makeUID(m_wifi_client)] = time.time()
+                    # Send the video commands to streamer, everything else to ArduPilot
+                    if m_wifi_client.get_type() == "COMMAND_LONG" and m_wifi_client.command in [mavutil.mavlink.MAV_CMD_VIDEO_START_STREAMING,
+                                                                                  mavutil.mavlink.MAV_CMD_VIDEO_STOP_STREAMING]:
+                        conn_streamer.write(m_wifi_client.get_msgbuf())
+                    else:
+                        conn_fc.write(m_wifi_client.get_msgbuf())
+                # time_since_last_rfd_wifi_client = time.time()
+        except serial.serialutil.SerialException:
+            conn_fc = None
+            print("Client Lost FC")
+
         try:
             if m_wifi:
                 if gcs_system == 0:
@@ -298,6 +331,11 @@ if __name__ == '__main__':
                     conn_wifi.write(m.get_msgbuf())
                 except (struct.error, NotImplementedError):
                     pass
+            if conn_wifi_client:
+                try:
+                    conn_wifi_client.write(m.get_msgbuf())
+                except (struct.error, NotImplementedError):
+                    pass    
             try:
                 # Only write message to Skylink if in whitelist
                 if m.get_type() in settings['skylink_messages'] and connection_state == CommsState.ON_SATCOM:
@@ -490,5 +528,7 @@ if __name__ == '__main__':
         conn_rfd.close()
     if conn_wifi:
         conn_wifi.close()
+    if conn_wifi_client:
+        conn_wifi_client.close()
     if conn_skylink:
         conn_skylink.close()

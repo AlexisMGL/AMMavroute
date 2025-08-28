@@ -1,17 +1,18 @@
 # Address of flight controller
 # Use "ls /dev/serial/by-id" to list serial devices
-fc_port: /dev/serial/by-id/usb-CubePilot_CubeOrange+_340041000B51323039383833-if00
-fc_baud: 115200
+fc_port: /dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTCKTT1F-if00-port0
+fc_baud: 57600
 
 # Address of RFD900
 # Use "ls /dev/serial/by-id" to list serial devices
-rfd_port: /dev/serial/by-id/usb-FTDI_FT231X_USB_UART_DC008I8N-if00-port0
-rfd_baud: 57600
+rfd_port: /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_AQ03I7YW-if00-port0
+rfd_baud: 230400
 
 # For Wifi, where to send the messages
 # This is the groundpi's Wifi address
 # mavproxy.py --master=udpout:192.168.1.124:14500
-wifi_remote: 192.168.1.124:14500
+wifi_remote: 192.168.200.130:14500
+wifi_remote_client: 0.0.0.0:14501
 
 # For Skylink, where to send the messages
 # This is the groundpi's Zerotier address
@@ -19,7 +20,7 @@ wifi_remote: 192.168.1.124:14500
 skylink_remote: 192.168.1.112:14502
 
 # Link timeout in sec before activating next link
-hb_timeout: 6
+hb_timeout: 5
 
 # Skylink IP address, username and password. 0 to disable
 skylink_ip: 0
@@ -71,12 +72,4 @@ skylink_messages:
  VFR_HUD: 0.5
  VIBRATION: 0
  WIND: 0
- 
 
- 
-
- 
-
- 
- 
- 
