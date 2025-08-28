@@ -123,6 +123,8 @@ Using the Rockblock requires the “rockblock2mav” software to be installed an
 
 ## Version History
 
+- **V1.9 (28/08/2025)** - Add independant direct TCP connexion GCS/airpi
+- **V1.8 (01/03/2025)** - Add multi drones support with independant connexions
 - **V1.7 (17/02/2025)** - Add Rockblock support
 - **V1.6 (12/06/2024)** - Add video streamer MAVLink connection
 - **V1.5.1 (11/05/2024)** - Bug fixes for Iridium GoExec
