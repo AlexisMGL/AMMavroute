@@ -1,0 +1,36 @@
+# AMMcamera settings for Logitech C920 + RTP H.264 streaming
+
+# Meshnet address of your PC
+video_endpoint: alexismg.lallement-everest.nord:5001
+
+# Incoming MAVLink stream (local to AirPi)
+mavlink_source: udpin:127.0.0.1:14551
+
+# Streaming bitrate (kbit/sec)
+bitrate: 300
+
+# Target resolution after resize
+height: 480
+width: 640
+
+# Crop resolution. This is before the "resize" setting
+# If no crop desired, set to -1
+crop_height: -1
+crop_width: -1
+
+# Video framerate in fps
+framerate: 5
+
+# Video resize factor (applied to crop_width/height if used)
+resize: 1.0
+
+# Kept for compatibility, not used directly
+is_h264: false
+
+# Video device of the C920 (from v4l2-ctl --list-devices)
+video_device: /dev/video0
+
+# Mission Planner GStreamer string (H.264, port must match video_endpoint)
+# udpsrc port=5001 buffer-size=90000 ! application/x-rtp ! rtpjitterbuffer !
+# rtph264depay ! h264parse ! avdec_h264 ! videoconvert !
+# video/x-raw,format=BGRA ! appsink name=outsink sync=false

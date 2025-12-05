@@ -1,10 +1,10 @@
 # Address of flight controller
 # Use "ls /dev/serial/by-id" to list serial devices
-fc_port: /dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTCKTT1F-if00-port0
+fc_port: /dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTD0XNXE-if00-port0
 fc_baud: 57600
 
 # Ground Control Station over Meshnet (NordVPN)
-# Utilise soit le hostname Meshnet (recommandé), soit l'IP Meshnet
+# Utilise soit le hostname Meshnet (recommande), soit l'IP Meshnet
 # Exemple : alexismg.lallement-everest.nord:14550
 gcs_remote: alexismg.lallement-everest.nord:14550
 
