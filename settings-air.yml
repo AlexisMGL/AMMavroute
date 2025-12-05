@@ -3,30 +3,10 @@
 fc_port: /dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTCKTT1F-if00-port0
 fc_baud: 57600
 
-# Address of RFD900
-# Use "ls /dev/serial/by-id" to list serial devices
-rfd_port: /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_AQ03I7YW-if00-port0
-rfd_baud: 230400
-
-# For Wifi, where to send the messages
-# This is the groundpi's Wifi address
-# mavproxy.py --master=udpout:192.168.1.124:14500
-wifi_remote: 192.168.200.130:14500
-wifi_remote_client: 0.0.0.0:14501
-
-# For Skylink, where to send the messages
-# This is the groundpi's Zerotier address
-# mavproxy.py --master=udpout:127.0.0.1:14501
-skylink_remote: 192.168.1.112:14502
-
-# Link timeout in sec before activating next link
-hb_timeout: 5
-
-# Skylink IP address, username and password. 0 to disable
-skylink_ip: 0
-
-# GoExec IP address. 0 to disable
-goexec_ip: 192.168.111.52
+# Ground Control Station over Meshnet (NordVPN)
+# Utilise soit le hostname Meshnet (recommandé), soit l'IP Meshnet
+# Exemple : alexismg.lallement-everest.nord:14550
+gcs_remote: alexismg.lallement-everest.nord:14550
 
 # MAVLink stream to AMMcamera
 streamer_ipport: 127.0.0.1:14551

@@ -1,0 +1,141 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\alexi\\Desktop\\AMMavroute\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:amroute-airpi.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:amroute-groundpi.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-ground.yml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:settings-ground.yml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-air.yml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:settings-air.yml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\RockBlock.lua||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:RockBlock.lua||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.service||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:amroute-groundpi.service||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.service||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:amroute-airpi.service||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 7,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "amroute-airpi.service",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.service",
+              "RelativeDocumentMoniker": "amroute-airpi.service",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.service",
+              "RelativeToolTip": "amroute-airpi.service",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAIwA0AAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-04-24T12:49:59.457Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "settings-air.yml",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-air.yml",
+              "RelativeDocumentMoniker": "settings-air.yml",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-air.yml",
+              "RelativeToolTip": "settings-air.yml",
+              "ViewState": "AQIAAAMAAAAAAAAAAAAAADUAAAATAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
+              "WhenOpened": "2025-03-10T06:56:16.308Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "settings-ground.yml",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-ground.yml",
+              "RelativeDocumentMoniker": "settings-ground.yml",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\settings-ground.yml",
+              "RelativeToolTip": "settings-ground.yml",
+              "ViewState": "AQIAAAgAAAAAAAAAAAAQwBIAAAA2AAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
+              "WhenOpened": "2025-03-04T12:07:25.261Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "amroute-groundpi.py",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.py",
+              "RelativeDocumentMoniker": "amroute-groundpi.py",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.py",
+              "RelativeToolTip": "amroute-groundpi.py",
+              "ViewState": "AQIAAHgBAAAAAAAAAAAqwIsBAAAkAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-03-04T07:03:35.505Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "amroute-groundpi.service",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.service",
+              "RelativeDocumentMoniker": "amroute-groundpi.service",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-groundpi.service",
+              "RelativeToolTip": "amroute-groundpi.service",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-03-04T05:31:02.53Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "RockBlock.lua",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\RockBlock.lua",
+              "RelativeDocumentMoniker": "RockBlock.lua",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\RockBlock.lua",
+              "RelativeToolTip": "RockBlock.lua",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAnAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-03-04T05:30:57.073Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "amroute-airpi.py",
+              "DocumentMoniker": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.py",
+              "RelativeDocumentMoniker": "amroute-airpi.py",
+              "ToolTip": "C:\\Users\\alexi\\Desktop\\AMMavroute\\amroute-airpi.py",
+              "RelativeToolTip": "amroute-airpi.py",
+              "ViewState": "AQIAAAgBAAAAAAAAAAAqwOYAAAA6AAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-03-04T05:28:35.196Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
