@@ -6,7 +6,9 @@ Simplified telemetry bridge:
 
 - No filtering / no rate limiting: forwards everything
 - Sends optional video commands to a separate streamer endpoint
-- Sends STATUSTEXT to MissionPlanner every 30s with throughput + data usage
+- Sends STATUSTEXT to MissionPlanner every 30s with:
+    * average total throughput over last 30s in kB/s (IN+OUT)
+    * cumulative IN and OUT in MB
 """
 
 from pymavlink import mavutil
@@ -15,10 +17,12 @@ import time
 import serial
 import struct
 
-UDP_IP_OVERHEAD = 28  # approx: IPv4(20) + UDP(8)
+# Approximate overhead for IP+UDP per packet (for stats only)
+UDP_IP_OVERHEAD = 28  # IPv4(20) + UDP(8)
 
-def parse_host_port(hostport):
-    parts = hostport.split(':')
+
+def parse_host_port(hostport: str):
+    parts = hostport.split(":")
     if len(parts) != 2:
         raise ValueError(f"Invalid host:port string: {hostport}")
     host = parts[0]
@@ -27,6 +31,10 @@ def parse_host_port(hostport):
 
 
 def connect_fc(port, baud):
+    """
+    Connect to the flight controller, wait for heartbeat,
+    and return (connection, system_id, component_id).
+    """
     while True:
         try:
             print(f"[FC] Connecting on {port} @ {baud}...")
@@ -35,14 +43,18 @@ def connect_fc(port, baud):
                 baud=baud,
                 autoreconnect=True,
                 source_system=1,
-                source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER
+                source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER,
             )
             print("[FC] Waiting for heartbeat...")
             mh = conn.wait_heartbeat(timeout=5)
             if mh is not None and conn.probably_vehicle_heartbeat(mh):
-                print(f"[FC] Got heartbeat from ArduPilot "
-                      f"(system {mh.get_srcSystem()} component {mh.get_srcComponent()})")
-                return conn
+                ap_sys = mh.get_srcSystem()
+                ap_comp = mh.get_srcComponent()
+                print(
+                    "[FC] Got heartbeat from ArduPilot "
+                    f"(system {ap_sys} component {ap_comp})"
+                )
+                return conn, ap_sys, ap_comp
             else:
                 print("[FC] No heartbeat, retrying in 5s...")
         except serial.serialutil.SerialException as e:
@@ -52,15 +64,21 @@ def connect_fc(port, baud):
         time.sleep(5)
 
 
-def connect_gcs(host, port):
+def connect_gcs(host, port, ap_system):
+    """
+    Connect to GCS via UDP. We set source_system to ap_system
+    so STATUSTEXT appear as if they come from the vehicle.
+    """
     url = f"udpout:{host}:{port}"
     print(f"[GCS] Connecting to {url} ...")
     conn = mavutil.mavlink_connection(
         url,
         autoreconnect=True,
-        source_system=1,
-        source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER
+        source_system=ap_system,
+        source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER,
     )
+    # Safety: ensure underlying mav object has the same sysid
+    conn.mav.srcSystem = ap_system
     return conn
 
 
@@ -73,13 +91,13 @@ def connect_streamer(streamer_ipport):
         url,
         autoreconnect=True,
         source_system=1,
-        source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL
+        source_component=mavutil.mavlink.MAV_COMP_ID_PERIPHERAL,
     )
     return conn
 
 
 def clamp_statustext(s: str, max_len: int = 50) -> str:
-    # STATUSTEXT classic is short; keep it compact and safe ASCII-ish.
+    """Clamp STATUSTEXT to classic MAVLink length, keep it ASCII-safe."""
     if len(s) <= max_len:
         return s
     return s[:max_len]
@@ -88,31 +106,34 @@ def clamp_statustext(s: str, max_len: int = 50) -> str:
 def main():
     print("----- AMRoute AirPi Meshnet -----\nStarting...")
 
-    with open('settings-air.yml', 'r') as file:
+    with open("settings-air.yml", "r") as file:
         settings = yaml.safe_load(file)
 
-    fc_port = settings['fc_port']
-    fc_baud = settings['fc_baud']
-    gcs_host, gcs_port = parse_host_port(settings['gcs_remote'])
-    streamer_ipport = settings.get('streamer_ipport', None)
+    fc_port = settings["fc_port"]
+    fc_baud = settings["fc_baud"]
+    gcs_host, gcs_port = parse_host_port(settings["gcs_remote"])
+    streamer_ipport = settings.get("streamer_ipport", None)
 
     print(f"[CONFIG] FC port          : {fc_port} @ {fc_baud}")
     print(f"[CONFIG] GCS (Meshnet)    : {gcs_host}:{gcs_port}")
     print(f"[CONFIG] Streamer ip:port : {streamer_ipport}\n")
 
-    conn_fc = connect_fc(fc_port, fc_baud)
-    conn_gcs = connect_gcs(gcs_host, gcs_port)
+    # First connect to FC to get system/component IDs
+    conn_fc, ap_system, ap_component = connect_fc(fc_port, fc_baud)
+    conn_gcs = connect_gcs(gcs_host, gcs_port, ap_system)
     conn_streamer = connect_streamer(streamer_ipport)
 
     # ---- Stats (per 30s + totals) ----
     REPORT_PERIOD = 30.0
     last_report = time.time()
 
-    period_out_bytes = 0   # AirPi -> GCS
-    period_in_bytes  = 0   # GCS -> AirPi (approx from received msg sizes)
+    # Per-period bytes (for average over last 30s)
+    period_out_bytes = 0  # AirPi -> GCS
+    period_in_bytes = 0   # GCS  -> AirPi
 
+    # Totals since script start
     total_out_bytes = 0
-    total_in_bytes  = 0
+    total_in_bytes = 0
 
     try:
         while True:
@@ -121,19 +142,23 @@ def main():
                 m_fc = conn_fc.recv_msg()
             except serial.serialutil.SerialException as e:
                 print(f"[FC] Lost FC: {e}, reconnecting...")
-                conn_fc = connect_fc(fc_port, fc_baud)
+                conn_fc, ap_system, ap_component = connect_fc(fc_port, fc_baud)
+                # Make sure GCS source_system matches the (possibly new) FC sysid
+                conn_gcs = connect_gcs(gcs_host, gcs_port, ap_system)
                 m_fc = None
             except Exception as e:
                 print(f"[FC] Error receiving from FC: {e}")
                 m_fc = None
 
             if m_fc is not None:
+                # Forward HEARTBEAT also to streamer to keep it initialized
                 if conn_streamer and m_fc.get_type() == "HEARTBEAT":
                     try:
                         conn_streamer.write(m_fc.get_msgbuf())
                     except (struct.error, NotImplementedError) as e:
                         print(f"[STREAMER] Error sending HB: {e}")
 
+                # Forward everything to GCS, count bytes
                 try:
                     buf = m_fc.get_msgbuf()
                     conn_gcs.write(buf)
@@ -151,26 +176,38 @@ def main():
                 m_gcs = None
 
             if m_gcs is not None:
-                # Count inbound meshnet traffic (approx)
+                # Approximate inbound traffic from GCS via Meshnet
                 try:
-                    in_n = len(m_gcs.get_msgbuf()) + UDP_IP_OVERHEAD
+                    buf_gcs = m_gcs.get_msgbuf()
+                    in_n = len(buf_gcs) + UDP_IP_OVERHEAD
                     period_in_bytes += in_n
                     total_in_bytes += in_n
                 except Exception:
-                    pass
+                    buf_gcs = m_gcs.get_msgbuf()
 
-                if (m_gcs.get_type() == "COMMAND_LONG" and
-                    m_gcs.command in [mavutil.mavlink.MAV_CMD_VIDEO_START_STREAMING,
-                                      mavutil.mavlink.MAV_CMD_VIDEO_STOP_STREAMING]):
+                # Forward video commands also to streamer
+                if (
+                    m_gcs.get_type() == "COMMAND_LONG"
+                    and m_gcs.command
+                    in [
+                        mavutil.mavlink.MAV_CMD_VIDEO_START_STREAMING,
+                        mavutil.mavlink.MAV_CMD_VIDEO_STOP_STREAMING,
+                    ]
+                ):
                     if conn_streamer:
                         try:
-                            conn_streamer.write(m_gcs.get_msgbuf())
+                            conn_streamer.write(buf_gcs)
                         except (struct.error, NotImplementedError) as e:
                             print(f"[STREAMER] Error sending video cmd: {e}")
 
+                # Forward to FC
                 try:
-                    conn_fc.write(m_gcs.get_msgbuf())
-                except (struct.error, NotImplementedError, serial.serialutil.SerialException) as e:
+                    conn_fc.write(buf_gcs)
+                except (
+                    struct.error,
+                    NotImplementedError,
+                    serial.serialutil.SerialException,
+                ) as e:
                     print(f"[FC] Error sending from GCS: {e}")
 
             # --- Periodic STATUSTEXT to Mission Planner (every 30s) ---
@@ -178,26 +215,30 @@ def main():
             if (now - last_report) >= REPORT_PERIOD:
                 dt = now - last_report if (now - last_report) > 0 else REPORT_PERIOD
 
-                out_kbps = (period_out_bytes * 8) / dt / 1000.0
-                in_kbps  = (period_in_bytes  * 8) / dt / 1000.0
+                # Average total throughput over last 30s in kB/s
+                interval_total_bytes = period_in_bytes + period_out_bytes
+                avg_kBps = (interval_total_bytes / dt) / 1024.0
 
-                out_mb = total_out_bytes / 1_000_000.0
-                in_mb  = total_in_bytes  / 1_000_000.0
+                # Cumulative IN/OUT in MB (since script start)
+                out_MB = total_out_bytes / (1024.0 * 1024.0)
+                in_MB = total_in_bytes / (1024.0 * 1024.0)
 
-                msg = f"Mesh O:{out_kbps:.0f}k I:{in_kbps:.0f}k Up:{out_mb:.1f}MB Dn:{in_mb:.1f}MB"
+                msg = f"NET30 {avg_kBps:.1f}kB/s IN {in_MB:.1f}MB OUT {out_MB:.1f}MB"
                 msg = clamp_statustext(msg, 50)
 
+                # Console AirPi
                 print(f"[STATS] {msg}")
 
-                # Send directly to GCS so Mission Planner surely shows it
+                # STATUSTEXT to GCS (Mission Planner), with sysid == ap_system
                 try:
                     conn_gcs.mav.statustext_send(
                         mavutil.mavlink.MAV_SEVERITY_INFO,
-                        msg.encode(errors="ignore")
+                        msg.encode(errors="ignore"),
                     )
                 except Exception as e:
                     print(f"[GCS] Failed to send STATUSTEXT: {e}")
 
+                # Reset period counters
                 period_out_bytes = 0
                 period_in_bytes = 0
                 last_report = now
@@ -209,18 +250,21 @@ def main():
 
     print("Exiting")
     try:
-        if conn_fc: conn_fc.close()
+        if conn_fc:
+            conn_fc.close()
     except Exception:
         pass
     try:
-        if conn_gcs: conn_gcs.close()
+        if conn_gcs:
+            conn_gcs.close()
     except Exception:
         pass
     try:
-        if conn_streamer: conn_streamer.close()
+        if conn_streamer:
+            conn_streamer.close()
     except Exception:
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

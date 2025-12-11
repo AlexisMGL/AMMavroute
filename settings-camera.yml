@@ -30,7 +30,18 @@ is_h264: false
 # Video device of the C920 (from v4l2-ctl --list-devices)
 video_device: /dev/video0
 
+# Max GOP/keyframe interval (frames). Lower = faster resync after pertes réseau.
+key_int_max: 10
+
+# RTP packet MTU to reduce IP fragmentation on liens instables.
+pay_mtu: 1200
+
+# Overlay a wall-clock timestamp in the video to measure latency (set true only when needed)
+overlay_timestamp: false
+
 # Mission Planner GStreamer string (H.264, port must match video_endpoint)
 # udpsrc port=5001 buffer-size=90000 ! application/x-rtp ! rtpjitterbuffer !
 # rtph264depay ! h264parse ! avdec_h264 ! videoconvert !
 # video/x-raw,format=BGRA ! appsink name=outsink sync=false
+
+# udpsrc port=5001 buffer-size=262144 caps="application/x-rtp, media=video, encoding-name=H265, payload=96" ! rtpjitterbuffer latency=80 drop-on-late=true ! rtph265depay ! h265parse ! avdec_h265 ! videoconvert ! video/x-raw,format=BGRA ! appsink name=outsink sync=false

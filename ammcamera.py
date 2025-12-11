@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-AMMcamera V1.6.0 - USB Webcam (Logitech C920) + RTP H.264 streaming
+AMMcamera V1.6.2 - USB Webcam (Logitech C920) + RTP H.265 streaming
 
-Pipeline :
-  v4l2src (/dev/video0) -> videoconvert -> videoscale -> x264enc -> rtph264pay -> udpsink
+Pipeline:
+  v4l2src (/dev/video0) -> videoconvert -> videoscale -> x265enc -> rtph265pay -> udpsink
 
-Controle :
+Control:
   - Start via MAV_CMD_VIDEO_START_STREAMING
   - Stop  via MAV_CMD_VIDEO_STOP_STREAMING
 """
@@ -51,16 +51,16 @@ def start_gstreamer_pipeline(
     resize: float,
     crop_height: int,
     crop_width: int,
-    is_h264: bool,  # non utilise, laisse pour compat
+    is_h264: bool,  # not used, kept for compat
     video_device: str,
+    overlay_timestamp: bool = False,
 ) -> None:
     """
-    Pipeline robuste :
-      v4l2src (raw) -> videoconvert -> videoscale -> caps -> x264enc -> RTP H.264 -> udpsink
-    On ne force PAS de format exotique sur la camera, juste width/height apres conversion.
+    Pipeline:
+      v4l2src (raw) -> videoconvert -> videoscale -> caps -> x265enc -> queue(leaky) -> RTP H.265 -> udpsink
     """
 
-    # ---- Gestion crop / resize (optionnel) ----
+    # ---- Crop / resize (optional) ----
     if crop_height != -1 and crop_width != -1:
         offset_left = (width - crop_width) // 2
         offset_right = (width - crop_width) - offset_left
@@ -79,30 +79,44 @@ def start_gstreamer_pipeline(
         new_width = width
         new_height = height
 
-    # ---- Source : C920 en raw (/dev/video0 par defaut) ----
+    # ---- Source: C920 in raw mode (/dev/video0 by default) ----
     s_src = f"v4l2src device={video_device}"
 
-    # Conversion/crop/resize : on laisse la cam sortir ce qu'elle veut,
-    # on convertit en raw, puis on scale/recadre.
+    # Convert / scale / crop
     s_pre = (
         " ! videoconvert "
         "! videoscale "
-        f"! video/x-raw,width={new_width},height={new_height} "
+        "! videorate "
+        f"! video/x-raw,width={new_width},height={new_height},framerate={framerate}/1,format=I420 "
         f"! videocrop left={offset_left} right={offset_right} top={offset_top} bottom={offset_bottom} "
     )
+    if overlay_timestamp:
+        # Overlay the send-side wall-clock to measure end-to-end latency on the viewer.
+        s_pre += (
+            '! clockoverlay time-format="%H:%M:%S.%3N" shaded-background=true '
+            "halignment=right valignment=bottom "
+        )
 
-    # ---- Encodage H.264 logiciel ----
-    s_h264 = (
-        "x264enc tune=zerolatency bitrate={0} speed-preset=ultrafast "
-        "key-int-max=10 byte-stream=true "
-        "! video/x-h264,profile=baseline "
-        "! rtph264pay config-interval=1 name=pay0 pt=96"
-    ).format(bitrate)
+    # ---- Software H.265 encoder ----
+    # key-int-max = framerate -> about 1s GOP, faster recovery after packet loss
+    # queue leaky, bounded to about 2s of video
+    if framerate <= 0:
+        keyint = 1
+    else:
+        keyint = framerate
+
+    s_h265 = (
+        "x265enc tune=zerolatency bitrate={0} speed-preset=ultrafast "
+        "key-int-max={1} "
+        "! video/x-h265,profile=main,stream-format=byte-stream "
+        "! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 leaky=downstream "
+        "! rtph265pay config-interval=1 pt=96"
+    ).format(bitrate, keyint)
 
     host, port = udpendpoint.split(":")
-    s_sink = f"udpsink host={host} port={port}"
+    s_sink = f"udpsink host={host} port={port} sync=false async=false"
 
-    pipeline_str = s_src + s_pre + "! " + s_h264 + " ! " + s_sink
+    pipeline_str = s_src + s_pre + "! " + s_h265 + " ! " + s_sink
 
     print("GStreamer pipeline:")
     print(pipeline_str)
@@ -132,7 +146,7 @@ def start_gstreamer_pipeline(
 
 if __name__ == "__main__":
 
-    print("----- AMMcamera V1.6.0 -----")
+    print("----- AMMcamera V1.6.2 -----")
     print("Starting...")
 
     signal.signal(signal.SIGINT, signal_handler)
@@ -240,6 +254,7 @@ if __name__ == "__main__":
                                 settings["crop_width"],
                                 settings.get("is_h264", False),
                                 video_device,
+                                settings.get("overlay_timestamp", False),
                             ),
                         )
                         gstreamer_thread.start()
