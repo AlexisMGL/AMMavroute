@@ -19,6 +19,7 @@ import gi
 import platform
 import os
 import signal
+import socket
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst
@@ -54,6 +55,7 @@ def start_gstreamer_pipeline(
     is_h264: bool,  # not used, kept for compat
     video_device: str,
     overlay_timestamp: bool = False,
+    timestamp_port: int = 5002,
 ) -> None:
     """
     Pipeline:
@@ -93,9 +95,14 @@ def start_gstreamer_pipeline(
     if overlay_timestamp:
         # Overlay the send-side wall-clock to measure end-to-end latency on the viewer.
         s_pre += (
-            '! clockoverlay time-format="%H:%M:%S.%3N" shaded-background=true '
+            '! clockoverlay time-format="%H:%M:%S" shaded-background=true '
             "halignment=right valignment=bottom "
         )
+
+    # Optional timestamp tap: sends wall-clock timestamps over UDP (side channel).
+    send_timestamps = timestamp_port and timestamp_port > 0
+    if send_timestamps:
+        s_pre += " ! identity name=ts_tap signal-handoffs=true "
 
     # ---- Software H.265 encoder ----
     # key-int-max = framerate -> about 1s GOP, faster recovery after packet loss
@@ -122,9 +129,33 @@ def start_gstreamer_pipeline(
     print(pipeline_str)
 
     pipeline = Gst.parse_launch(pipeline_str)
+
+    # Wire the timestamp tap (if enabled) to push wall-clock timestamps on a side UDP port.
+    udp_ts_socket = None
+    if send_timestamps:
+        ts_element = pipeline.get_by_name("ts_tap")
+        if ts_element:
+            udp_ts_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+            def on_handoff(element, buffer, pad=None):
+                try:
+                    # Wall-clock in nanoseconds; aligns with the overlay semantics.
+                    now_ns = time.time_ns()
+                    payload = f"{now_ns}\n".encode()
+                    udp_ts_socket.sendto(payload, (host, timestamp_port))
+                except Exception:
+                    # Best effort; do not kill the pipeline on send errors.
+                    pass
+
+            ts_element.connect("handoff", on_handoff)
+        else:
+            print("Warning: timestamp tap requested but not found in pipeline")
+
     pipeline.set_state(Gst.State.PLAYING)
 
     print("Server sending UDP stream to " + udpendpoint)
+    if send_timestamps:
+        print(f"Sending wall-clock timestamps to {host}:{timestamp_port}")
 
     bus = pipeline.get_bus()
     while not stop_pipeline_flag.is_set() and not exit_event.is_set():
@@ -142,6 +173,8 @@ def start_gstreamer_pipeline(
 
     print("Cleaning up stream")
     pipeline.set_state(Gst.State.NULL)
+    if udp_ts_socket:
+        udp_ts_socket.close()
 
 
 if __name__ == "__main__":
@@ -255,6 +288,7 @@ if __name__ == "__main__":
                                 settings.get("is_h264", False),
                                 video_device,
                                 settings.get("overlay_timestamp", False),
+                                settings.get("timestamp_port", 5002),
                             ),
                         )
                         gstreamer_thread.start()

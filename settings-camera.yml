@@ -39,6 +39,9 @@ pay_mtu: 1200
 # Overlay a wall-clock timestamp in the video to measure latency (set true only when needed)
 overlay_timestamp: false
 
+# Side-channel UDP port to send wall-clock timestamps for each frame (disable with 0)
+timestamp_port: 5002
+
 # Mission Planner GStreamer string (H.264, port must match video_endpoint)
 # udpsrc port=5001 buffer-size=90000 ! application/x-rtp ! rtpjitterbuffer !
 # rtph264depay ! h264parse ! avdec_h264 ! videoconvert !
