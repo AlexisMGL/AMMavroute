@@ -1,13 +1,18 @@
 [Unit]
 Description=AmRoute Camera
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
-WorkingDirectory=/home/pi/AMMcamera
-ExecStart=/usr/bin/python3 ammcamera.py
-Restart=on-failure
 User=pi
+Group=pi
+WorkingDirectory=/home/pi/AMMcamera
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 ammcamera.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-
