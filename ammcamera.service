@@ -1,0 +1,13 @@
+[Unit]
+Description=AmRoute Camera
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/AMMcamera
+ExecStart=/usr/bin/python3 ammcamera.py
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+
