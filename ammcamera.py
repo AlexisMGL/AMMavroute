@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AMMcamera V1.6.2 - USB Webcam (Logitech C920) + RTP H.265 streaming
+AMMcamera V1.8.0 - USB Webcam (Logitech C920) + RTP H.265 + RTP Opus audio streaming
 
 Pipeline:
   v4l2src (/dev/video0) -> videoconvert -> videoscale -> x265enc -> rtph265pay -> udpsink
@@ -177,9 +177,92 @@ def start_gstreamer_pipeline(
         udp_ts_socket.close()
 
 
+def start_audio_pipeline(
+    udpendpoint: str,
+    bitrate: int = 24000,
+    device: str = None,
+    sample_rate: int = 16000,
+    channels: int = 1,
+    timestamp_port: int = 0,
+) -> None:
+    """
+    Pipeline:
+      alsasrc -> audioconvert -> audioresample -> caps -> opusenc -> rtpopuspay -> udpsink
+    """
+
+    s_src = "alsasrc"
+    if device:
+        s_src += f" device={device}"
+
+    s_pre = (
+        " ! audioconvert "
+        "! audioresample "
+        f"! audio/x-raw,channels={channels},rate={sample_rate} "
+    )
+
+    send_timestamps = timestamp_port and timestamp_port > 0
+    if send_timestamps:
+        s_pre += " ! identity name=audio_ts signal-handoffs=true "
+
+    s_opus = f"! opusenc bitrate={bitrate} frame-size=20 ! rtpopuspay pt=97"
+
+    host, port = udpendpoint.split(":")
+    s_sink = f"! udpsink host={host} port={port} sync=false async=false"
+
+    pipeline_str = s_src + s_pre + " " + s_opus + " " + s_sink
+
+    print("GStreamer audio pipeline:")
+    print(pipeline_str)
+
+    pipeline = Gst.parse_launch(pipeline_str)
+
+    udp_ts_socket = None
+    if send_timestamps:
+        ts_element = pipeline.get_by_name("audio_ts")
+        if ts_element:
+            udp_ts_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+            def on_handoff(element, buffer, pad=None):
+                try:
+                    now_ns = time.time_ns()
+                    payload = f"{now_ns}\n".encode()
+                    udp_ts_socket.sendto(payload, (host, timestamp_port))
+                except Exception:
+                    pass
+
+            ts_element.connect("handoff", on_handoff)
+        else:
+            print("Warning: audio timestamp tap requested but not found in pipeline")
+
+    pipeline.set_state(Gst.State.PLAYING)
+
+    print("Server sending UDP audio stream to " + udpendpoint)
+    if send_timestamps:
+        print(f"Sending audio timestamps to {host}:{timestamp_port}")
+
+    bus = pipeline.get_bus()
+    while not stop_pipeline_flag.is_set() and not exit_event.is_set():
+        msg = bus.timed_pop_filtered(
+            100 * Gst.MSECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS
+        )
+        if msg:
+            if msg.type == Gst.MessageType.ERROR:
+                err, debug = msg.parse_error()
+                print(f"Audio Error: {err}, {debug}")
+                break
+            elif msg.type == Gst.MessageType.EOS:
+                print("Audio End of Stream")
+                break
+
+    print("Cleaning up audio stream")
+    pipeline.set_state(Gst.State.NULL)
+    if udp_ts_socket:
+        udp_ts_socket.close()
+
+
 if __name__ == "__main__":
 
-    print("----- AMMcamera V1.6.2 -----")
+    print("----- AMMcamera V1.8.0 -----")
     print("Starting...")
 
     signal.signal(signal.SIGINT, signal_handler)
@@ -188,6 +271,7 @@ if __name__ == "__main__":
     settings = {}
     conn_mavlink = None
     gstreamer_thread = None
+    audio_thread = None
 
     # --- Load settings ---
     try:
@@ -203,6 +287,12 @@ if __name__ == "__main__":
     Gst.init(None)
 
     video_device = settings.get("video_device", "/dev/video0")
+    audio_device = settings.get("audio_device")
+    audio_endpoint = settings.get("audio_endpoint")
+    audio_bitrate = settings.get("audio_bitrate", 24000)
+    audio_sample_rate = settings.get("audio_sample_rate", 16000)
+    audio_channels = settings.get("audio_channels", 1)
+    audio_timestamp_port = settings.get("audio_timestamp_port", 0)
 
     # --- Connect MAVLink and wait for heartbeat ---
     try:
@@ -267,11 +357,11 @@ if __name__ == "__main__":
                     m_mavlink.command
                     == mavutil.mavlink.MAV_CMD_VIDEO_START_STREAMING
                 ):
-                    if not gstreamer_thread:
+                    if not gstreamer_thread and not audio_thread:
                         print("Starting stream")
                         conn_mavlink.mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO,
-                            "AMMcamera: Starting Video".encode(),
+                            "AMMcamera: Starting AV".encode(),
                         )
                         stop_pipeline_flag.clear()
                         gstreamer_thread = threading.Thread(
@@ -292,11 +382,28 @@ if __name__ == "__main__":
                             ),
                         )
                         gstreamer_thread.start()
+                        if audio_endpoint:
+                            audio_thread = threading.Thread(
+                                target=start_audio_pipeline,
+                                args=(
+                                    audio_endpoint,
+                                    audio_bitrate,
+                                    audio_device,
+                                    audio_sample_rate,
+                                    audio_channels,
+                                    audio_timestamp_port,
+                                ),
+                            )
+                            audio_thread.start()
+                        else:
+                            print(
+                                "Audio endpoint not configured; audio stream disabled"
+                            )
                     else:
                         print("Stream already started")
                         conn_mavlink.mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO,
-                            "AMMcamera: Video already started".encode(),
+                            "AMMcamera: AV already started".encode(),
                         )
                     conn_mavlink.mav.command_ack_send(
                         mavutil.mavlink.MAV_CMD_VIDEO_START_STREAMING,
@@ -308,19 +415,23 @@ if __name__ == "__main__":
                     == mavutil.mavlink.MAV_CMD_VIDEO_STOP_STREAMING
                 ):
                     print("Stopping stream")
-                    if gstreamer_thread:
+                    if gstreamer_thread or audio_thread:
                         conn_mavlink.mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO,
-                            "AMMcamera: Stopping Video".encode(),
+                            "AMMcamera: Stopping AV".encode(),
                         )
                         stop_pipeline_flag.set()
-                        gstreamer_thread.join()
-                        gstreamer_thread = None
+                        if gstreamer_thread:
+                            gstreamer_thread.join()
+                            gstreamer_thread = None
+                        if audio_thread:
+                            audio_thread.join()
+                            audio_thread = None
                     else:
                         print("Stream already stopped")
                         conn_mavlink.mav.statustext_send(
                             mavutil.mavlink.MAV_SEVERITY_INFO,
-                            "AMMcamera: Video already stopped".encode(),
+                            "AMMcamera: AV already stopped".encode(),
                         )
                     conn_mavlink.mav.command_ack_send(
                         mavutil.mavlink.MAV_CMD_VIDEO_STOP_STREAMING,

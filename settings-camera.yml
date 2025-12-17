@@ -30,7 +30,7 @@ is_h264: false
 # Video device of the C920 (from v4l2-ctl --list-devices)
 video_device: /dev/video0
 
-# Max GOP/keyframe interval (frames). Lower = faster resync after pertes réseau.
+# Max GOP/keyframe interval (frames). Lower = faster resync after pertes reseau.
 key_int_max: 10
 
 # RTP packet MTU to reduce IP fragmentation on liens instables.
@@ -42,8 +42,25 @@ overlay_timestamp: false
 # Side-channel UDP port to send wall-clock timestamps for each frame (disable with 0)
 timestamp_port: 5002
 
+# -------- Audio (Opus) --------
+# Meshnet address of your PC for audio (Opus RTP)
+audio_endpoint: alexismg.lallement-everest.nord:5003
+
+# Opus bitrate in bit/s (24000 = ~24 kbps)
+audio_bitrate: 24000
+
+# ALSA device of the C920 microphone (use arecord -l to confirm). Example: hw:1,0
+audio_device: hw:1,0
+
+# Audio caps
+audio_sample_rate: 16000
+audio_channels: 1
+
+# Side-channel UDP port to send wall-clock timestamps for audio (disable with 0)
+audio_timestamp_port: 0
+
 # Mission Planner GStreamer string (H.264, port must match video_endpoint)
-# udpsrc port=5001 buffer-size=90000 ! application/x-rtp ! rtpjitterbuffer !
+# udpsrc port=5001 buffer-size=90000 ! application/x-rtp ! rtpjitterbuffer ! 
 # rtph264depay ! h264parse ! avdec_h264 ! videoconvert !
 # video/x-raw,format=BGRA ! appsink name=outsink sync=false
 
