@@ -20,6 +20,7 @@ import platform
 import os
 import signal
 import socket
+import subprocess
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst
@@ -41,6 +42,29 @@ def is_debian_bookworm() -> bool:
         )
     except Exception:
         return False
+
+
+def set_c920_focus_far(video_device: str, focus_value: int = 0) -> None:
+    """
+    Disable Logitech C920 continuous autofocus and set manual focus (far / infinity).
+    Must be done BEFORE opening v4l2src pipeline (camera can reset controls on open).
+    """
+    try:
+        # Disable continuous autofocus
+        subprocess.run(
+            ["v4l2-ctl", "-d", video_device, "--set-ctrl=focus_automatic_continuous=0"],
+            check=True,
+        )
+        # Set manual focus (0-10 is usually far on C920)
+        subprocess.run(
+            ["v4l2-ctl", "-d", video_device, f"--set-ctrl=focus_absolute={focus_value}"],
+            check=True,
+        )
+        print(f"C920 focus: autofocus OFF, focus_absolute={focus_value}")
+    except FileNotFoundError:
+        print("Warning: v4l2-ctl not found, cannot force focus (install v4l-utils)")
+    except Exception as e:
+        print(f"Warning: failed to set focus controls: {e}")
 
 
 def start_gstreamer_pipeline(
@@ -127,6 +151,9 @@ def start_gstreamer_pipeline(
 
     print("GStreamer pipeline:")
     print(pipeline_str)
+
+    # ---- Force C920 focus BEFORE opening the pipeline ----
+    set_c920_focus_far(video_device, focus_value=0)
 
     pipeline = Gst.parse_launch(pipeline_str)
 
